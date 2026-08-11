@@ -1,0 +1,177 @@
+import { useRef } from 'react'
+import {
+  Cat,
+  Check,
+  ChevronRight,
+  Code,
+  Database,
+  Download,
+  Pencil,
+  Rocket,
+  Upload,
+  User,
+} from 'lucide-react'
+import { useStore } from '../lib/store'
+import { Avatar, initialsOf, Screen, Toggle } from '../components/ui'
+
+const THEMES = ['#F5A524', '#17C964', '#EC4899', '#FF383C', '#0485F7']
+
+function Row({ icon, title, subtitle, right, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-[16px] bg-card px-3.5 py-3 text-left shadow-[0px_2px_6px_0px_#0000000F]"
+    >
+      <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent/15">{icon}</div>
+      <div className="flex flex-1 flex-col leading-tight">
+        <span className="text-[14px] font-semibold text-ink">{title}</span>
+        {subtitle && <span className="mt-0.5 text-[11px] text-faint">{subtitle}</span>}
+      </div>
+      {right ?? <ChevronRight size={14} color="#6E6E7A" />}
+    </button>
+  )
+}
+
+export default function SettingsScreen() {
+  const store = useStore()
+  const fileRef = useRef(null)
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pulse-backup.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function importData(file) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        store.importAll(JSON.parse(reader.result))
+        alert('Backup imported successfully')
+      } catch {
+        alert('That file does not look like a Pulse backup')
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  return (
+    <Screen activeTab="settings">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-[26px] font-bold text-ink">Settings</h1>
+          <span className="text-[12px] text-faint">Profile, data & preferences</span>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-white/10">
+          <Avatar initials={initialsOf('You')} size={44} />
+          <div className="flex flex-1 flex-col">
+            <span className="text-[15px] font-semibold text-ink">Mateus</span>
+            <span className="text-[12px] text-faint">mateus@example.com</span>
+          </div>
+          <button className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
+            <Pencil size={14} color="var(--color-accent)" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">DATA & ACCOUNT</div>
+          <Row
+            icon={<User size={15} color="var(--color-accent)" />}
+            title="Account"
+            subtitle="Profile details and avatar"
+          />
+          <Row
+            icon={<Database size={15} color="var(--color-accent)" />}
+            title="Back up my data"
+            subtitle="Export everything as a JSON file"
+            onClick={exportData}
+            right={<Download size={14} color="#6E6E7A" />}
+          />
+          <Row
+            icon={<Upload size={15} color="var(--color-accent)" />}
+            title="Restore a backup"
+            subtitle="Load data from a previous export"
+            onClick={() => fileRef.current?.click()}
+            right={<Upload size={14} color="#6E6E7A" />}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) importData(f)
+              e.target.value = ''
+            }}
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4">
+          <span className="text-[11px] font-semibold tracking-[1.4px] text-muted">APPEARANCE</span>
+          <span className="text-[14px] font-semibold text-ink">Color themes</span>
+          <div className="flex items-center gap-3.5">
+            {THEMES.map((t) => {
+              const active = store.settings.accent === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => store.setSettings({ accent: t })}
+                  title={`Set accent ${t}`}
+                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-transform ${
+                    active ? 'scale-105 outline outline-2 outline-white/25 outline-offset-2' : 'hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: t }}
+                >
+                  {active && <Check size={16} color="#FFFFFF" strokeWidth={3} />}
+                </button>
+              )
+            })}
+          </div>
+          <span className="text-[11px] text-faint">Saved on this device — accent updates everywhere</span>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <Row
+            icon={<Cat size={15} color="var(--color-accent)" />}
+            title="Neko pet"
+            subtitle="A little cat keeps you company"
+            right={<Toggle on={store.settings.neko} onChange={(v) => store.setSettings({ neko: v })} />}
+          />
+          <Row
+            icon={<Check size={15} color="var(--color-accent)" />}
+            title="Notifications"
+            subtitle="Reminders for workouts and rest"
+            right={<Toggle on={store.settings.notify} onChange={(v) => store.setSettings({ notify: v })} />}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">SYNC & ABOUT</div>
+          <Row
+            icon={<Rocket size={15} color="var(--color-accent)" />}
+            title="What's new"
+            subtitle="Version 2.0.1 — rest timer, charts"
+          />
+          <Row
+            icon={<Code size={15} color="var(--color-accent)" />}
+            title="Changelog"
+            subtitle="Everything that landed recently"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1 pt-1 text-center">
+          <span className="text-[11px] text-faint">Pulse Fitness Tracker</span>
+          <span className="text-[10px] text-faint/60">Local prototype · data stays in your browser</span>
+        </div>
+      </div>
+    </Screen>
+  )
+}

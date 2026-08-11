@@ -1,0 +1,265 @@
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+
+const KEY = 'pulse.state.v2'
+
+const DEFAULT = {
+  days: [],
+  sessions: [],
+  plan: {},
+  settings: { notify: true, neko: true, accent: '#0485F7' },
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return DEFAULT
+    const parsed = JSON.parse(raw)
+    return {
+      days: parsed.days ?? DEFAULT.days,
+      sessions: parsed.sessions ?? DEFAULT.sessions,
+      plan: parsed.plan ?? {},
+      settings: { ...DEFAULT.settings, ...parsed.settings },
+    }
+  } catch {
+    return DEFAULT
+  }
+}
+
+function backfillExercises(sessions, days) {
+  const cands = days
+    .flatMap((d) => d.exercises)
+    .filter((e) => (e.weight ?? 0) > 0)
+    .map((e) => ({ name: e.name, weight: e.weight }))
+  const mainLift = days.flatMap((d) => d.exercises)[0]?.name ?? null
+  let changed = false
+  const out = sessions.map((s) => {
+    if (s.exercise || !mainLift) return s
+    changed = true
+    if (!cands.length) return { ...s, exercise: mainLift }
+    const best = cands.reduce((a, b) =>
+      Math.abs(a.weight - s.weight) < Math.abs(b.weight - s.weight) ? a : b,
+    )
+    return { ...s, exercise: best.name }
+  })
+  return { out, changed }
+}
+
+const StoreCtx = createContext(null)
+
+export function StoreProvider({ children }) {
+  const [state, setState] = useState(load)
+
+  useEffect(() => {
+    setState((s) => {
+      const { out, changed } = backfillExercises(s.sessions, s.days)
+      if (!changed) return s
+      const next = { ...s, sessions: out }
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(KEY, JSON.stringify(state))
+  }, [state])
+
+  const api = useMemo(
+    () => ({
+      days: state.days,
+      sessions: state.sessions,
+      plan: state.plan,
+      settings: state.settings,
+
+      addDay(name, weekday) {
+        const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
+        const id = crypto.randomUUID()
+        setState((s) => ({
+          ...s,
+          days: [
+            ...s.days,
+            {
+              id,
+              name,
+              weekday,
+              color: colors[s.days.length % colors.length],
+              muscles: [],
+              exercises: [],
+            },
+          ],
+        }))
+        return id
+      },
+
+      updateDay(id, patch) {
+        setState((s) => ({
+          ...s,
+          days: s.days.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+        }))
+      },
+
+      deleteDay(id) {
+        setState((s) => {
+          const plan = {}
+          for (const [k, v] of Object.entries(s.plan)) if (v !== id) plan[k] = v
+          return { ...s, days: s.days.filter((d) => d.id !== id), plan }
+        })
+      },
+
+      addExercise(dayId, exercise) {
+        setState((s) => ({
+          ...s,
+          days: s.days.map((d) =>
+            d.id === dayId
+              ? {
+                  ...d,
+                  exercises: [
+                    ...d.exercises,
+                    {
+                      id: crypto.randomUUID(),
+                      name: exercise.name,
+                      muscle: exercise.muscle,
+                      sets: 3,
+                      reps: 10,
+                      weight: 20,
+                      done: false,
+                    },
+                  ],
+                  muscles: [...new Set([...d.muscles, exercise.muscle])],
+                }
+              : d,
+          ),
+        }))
+      },
+
+      removeExercise(dayId, exId) {
+        setState((s) => ({
+          ...s,
+          days: s.days.map((d) =>
+            d.id === dayId
+              ? { ...d, exercises: d.exercises.filter((e) => e.id !== exId) }
+              : d,
+          ),
+        }))
+      },
+
+      toggleExercise(dayId, exId) {
+        setState((s) => {
+          const prevDay = s.days.find((d) => d.id === dayId)
+          const prevAll =
+            !!prevDay && prevDay.exercises.length > 0 && prevDay.exercises.every((e) => e.done)
+          const days = s.days.map((d) =>
+            d.id === dayId
+              ? {
+                  ...d,
+                  exercises: d.exercises.map((e) =>
+                    e.id === exId ? { ...e, done: !e.done } : e,
+                  ),
+                }
+              : d,
+          )
+          const nextDay = days.find((d) => d.id === dayId)
+          const nextAll =
+            !!nextDay && nextDay.exercises.length > 0 && nextDay.exercises.every((e) => e.done)
+          let sessions = s.sessions
+          if (!prevAll && nextAll) {
+            const now = new Date()
+            const dateStr = now.toLocaleDateString('en-US', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+            })
+            const full = now.toISOString().slice(0, 10)
+            const logged = new Set(
+              sessions.filter((x) => x.full === full).map((x) => x.exercise),
+            )
+            const fresh = []
+            for (const e of nextDay.exercises) {
+              if (!e.done || logged.has(e.name)) continue
+              const prevBest = Math.max(
+                0,
+                ...sessions.filter((x) => x.exercise === e.name).map((x) => x.weight ?? 0),
+              )
+              fresh.push({
+                date: dateStr,
+                full,
+                exercise: e.name,
+                sets: e.sets,
+                reps: e.reps,
+                weight: e.weight,
+                pr: e.weight >= prevBest && e.weight > 0,
+              })
+            }
+            if (fresh.length) sessions = [...fresh, ...sessions].slice(0, 60)
+          }
+          return { ...s, days, sessions }
+        })
+      },
+
+      patchExercise(dayId, exId, patch) {
+        setState((s) => ({
+          ...s,
+          days: s.days.map((d) =>
+            d.id === dayId
+              ? { ...d, exercises: d.exercises.map((e) => (e.id === exId ? { ...e, ...patch } : e)) }
+              : d,
+          ),
+        }))
+      },
+
+      logSession(exerciseName, sets, reps, weight, pr) {
+        const now = new Date()
+        const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+        const full = now.toISOString().slice(0, 10)
+        setState((s) => ({
+          ...s,
+          sessions: [
+            { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr },
+            ...s.sessions,
+          ].slice(0, 60),
+        }))
+      },
+
+      setSettings(patch) {
+        setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }))
+      },
+
+      setPlan(dateKey, dayId) {
+        setState((s) => {
+          const plan = { ...s.plan }
+          if (dayId === null) delete plan[dateKey]
+          else plan[dateKey] = dayId
+          return { ...s, plan }
+        })
+      },
+
+      exportAll() {
+        return {
+          days: state.days,
+          sessions: state.sessions,
+          plan: state.plan,
+          settings: state.settings,
+        }
+      },
+
+      importAll(data) {
+        if (!data || !Array.isArray(data.days)) return false
+        setState({
+          days: data.days,
+          sessions: data.sessions ?? DEFAULT.sessions,
+          plan: data.plan ?? {},
+          settings: { ...DEFAULT.settings, ...data.settings },
+        })
+        return true
+      },
+    }),
+    [state],
+  )
+
+  return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
+}
+
+export function useStore() {
+  return useContext(StoreCtx)
+}
