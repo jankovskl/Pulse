@@ -132,8 +132,8 @@ export default function SettingsScreen() {
           <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">DATA & ACCOUNT</div>
           <Row
             icon={<User size={15} color="var(--color-accent)" />}
-            title="Account"
-            subtitle={auth.user ? 'Signed in · manage sync' : 'Sign in to sync your data'}
+            title={auth.user ? 'Account settings' : 'Account'}
+            subtitle={auth.user ? auth.user.email : 'Sign in to sync your data'}
             onClick={authDialog.openDialog}
           />
           <Row

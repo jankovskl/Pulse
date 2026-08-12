@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { isSupabaseEnabled } from '../lib/supabase'
-import { Modal } from './ui'
+import { Modal, Avatar, initialsOf } from './ui'
 
 export default function AuthModal({ open, onClose }) {
   const auth = useAuth()
@@ -51,7 +51,27 @@ export default function AuthModal({ open, onClose }) {
         </button>
       </div>
 
-      {!isSupabaseEnabled ? (
+      {auth.user ? (
+        <div className="mt-5 flex flex-col gap-3">
+          <div className="flex items-center gap-3 rounded-[14px] bg-field px-3 py-3">
+            <Avatar initials={initialsOf(auth.user.email ?? 'You')} size={36} />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-ink">{auth.user.email}</span>
+              <span className="text-[12px] text-faint">Signed in</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await auth.signOut()
+              onClose()
+            }}
+            className="h-11 rounded-[14px] bg-accent/15 text-[14px] font-semibold text-accent"
+          >
+            Sign out
+          </button>
+        </div>
+      ) : !isSupabaseEnabled ? (
         <p className="mt-5 text-[13px] leading-relaxed text-faint">
           Accounts are disabled in this build. Set the Supabase environment
           variables to enable cross-device sync and the live leaderboard.
@@ -100,7 +120,6 @@ export default function AuthModal({ open, onClose }) {
               ? 'No account yet? Create one'
               : 'Already have an account? Sign in'}
           </button>
-        </button>
         </form>
       )}
     </Modal>
