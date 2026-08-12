@@ -1,14 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronDown, ChevronLeft, Dumbbell } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
+import { useAuth } from '../lib/auth'
+import { supabase } from '../lib/supabase'
+import { fetchTopLifts, buildRows } from '../lib/leaderboard'
 import { Avatar, initialsOf, Screen, useNav } from '../components/ui'
 
 export default function LeaderboardScreen() {
   const nav = useNav()
   const store = useStore()
+  const auth = useAuth()
   const [exercise, setExercise] = useState(nav.ex || '')
   const [open, setOpen] = useState(false)
+  const [liveRows, setLiveRows] = useState(null)
 
   const exOptions = useMemo(
     () => exerciseOptions(store.days, store.sessions),
@@ -24,8 +29,41 @@ export default function LeaderboardScreen() {
     () => Math.max(0, ...exSessions.map((s) => s.weight ?? 0)),
     [exSessions],
   )
-  const rows = useMemo(() => leaderboardFor(current, userBest), [current, userBest])
-  const top3 = rows.slice(0, 3)
+
+  // When signed in, pull real lifts (and keep them live via realtime).
+  useEffect(() => {
+    if (!supabase || !auth.user) {
+      setLiveRows(null)
+      return
+    }
+    let active = true
+    const load = async () => {
+      try {
+        const [top] = await Promise.all([fetchTopLifts(supabase, current)])
+        if (active) setLiveRows(buildRows(top, auth.user.id))
+      } catch {}
+    }
+    load()
+    const channel = supabase
+      .channel(`lifts:${current}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lifts', filter: `exercise=eq.${current}` },
+        () => load(),
+      )
+      .subscribe()
+    return () => {
+      active = false
+      supabase.removeChannel(channel)
+    }
+  }, [current, auth.user])
+
+  const rows = useMemo(
+    () => (liveRows ? liveRows : leaderboardFor(current, userBest)),
+    [liveRows, current, userBest],
+  )
+  const hasUser = rows.some((r) => r.you)
+  const top3 = rows.slice(0, 3).filter(Boolean)
   const rest = rows.slice(3)
 
   return (
@@ -83,15 +121,16 @@ export default function LeaderboardScreen() {
           )}
         </div>
 
-        {userBest === 0 && (
+        {!hasUser && (
           <p className="text-[11px] leading-relaxed text-faint">
-            Log a {current} workout to place your best lift on this board — your rank updates
-            automatically.
+            {auth.user
+              ? `Log a ${current} workout to place your best lift on this board.`
+              : `Log a ${current} workout (and sign in) to place your best lift on this board.`}
           </p>
         )}
 
         <div className="flex items-end justify-center gap-2.5 pt-4">
-          {[top3[1], top3[0], top3[2]].map((r) => (
+          {[top3[1], top3[0], top3[2]].filter(Boolean).map((r) => (
             <div key={r.name} className="flex w-[92px] flex-col items-center">
               <span className="mb-1.5 text-[11px] font-semibold text-faint">
                 {r.name.split(' ')[0]}
