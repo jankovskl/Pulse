@@ -81,6 +81,16 @@ export function TimerProvider({ children }) {
   }, [session])
 
   useEffect(() => {
+    if (!session) return
+    const day = store.days.find((d) => d.id === session.dayId)
+    if (!day || !day.exercises.length) return
+    const firstUndone = day.exercises.findIndex((e) => !e.done)
+    const target = firstUndone === -1 ? day.exercises.length : firstUndone
+    if (target !== session.exIdx) setSession({ ...session, exIdx: target, set: 1 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.dayId, session?.exIdx, store.days])
+
+  useEffect(() => {
     if (!running || paused) return
     const id = setInterval(() => {
       const rem = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
@@ -122,6 +132,7 @@ export function TimerProvider({ children }) {
     setEndsAt(Date.now() + t * 1000)
     setRunning(true)
     setPaused(false)
+    setSession((s) => (s ? { ...s, startedAt: s.startedAt ?? Date.now(), justCompletedId: null } : s))
     if (notify && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
@@ -172,34 +183,36 @@ export function TimerProvider({ children }) {
   function useDay(dayId) {
     const day = storeRef.current.days.find((d) => d.id === dayId)
     if (!day || !day.exercises.length) {
-      setSession({ dayId, exIdx: 0, set: 1 })
+      setSession({ dayId, exIdx: 0, set: 1, justCompletedId: null })
       return
     }
     const first = day.exercises.findIndex((e) => !e.done)
-    setSession({ dayId, exIdx: first === -1 ? 0 : first, set: 1 })
+    setSession({ dayId, exIdx: first === -1 ? 0 : first, set: 1, justCompletedId: null })
   }
 
-  function advanceSession() {
-    const s = sessionRef.current
-    if (!s) return
-    const day = storeRef.current.days.find((d) => d.id === s.dayId)
-    if (!day || !day.exercises.length) return
-    const ex = day.exercises[s.exIdx]
-    if (ex && s.set < ex.sets) {
-      setSession({ ...s, set: s.set + 1 })
-      return
-    }
-    if (ex && !ex.done) {
-      storeRef.current.toggleExercise(s.dayId, ex.id)
-    }
-    let next = s.exIdx + 1
-    while (next < day.exercises.length && day.exercises[next].done) next++
-    if (next >= day.exercises.length) {
-      setSession({ ...s, exIdx: day.exercises.length })
-      return
-    }
-    setSession({ dayId: s.dayId, exIdx: next, set: 1 })
+function advanceSession() {
+  const s = sessionRef.current
+  if (!s) return
+  const day = storeRef.current.days.find((d) => d.id === s.dayId)
+  if (!day || !day.exercises.length) return
+  const ex = day.exercises[s.exIdx]
+  if (ex && s.set < ex.sets) {
+    setSession({ ...s, set: s.set + 1, justCompletedId: null })
+    return
   }
+  let justCompletedId = null
+  if (ex && !ex.done) {
+    storeRef.current.toggleExercise(s.dayId, ex.id)
+    justCompletedId = ex.id
+  }
+  let next = s.exIdx + 1
+  while (next < day.exercises.length && day.exercises[next].done) next++
+  if (next >= day.exercises.length) {
+    setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
+    return
+  }
+  setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
+}
 
   return (
     <TimerCtx.Provider

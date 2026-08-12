@@ -82,6 +82,8 @@ export default function DayDetailScreen() {
 
   const workoutActive = timer.session?.dayId === day.id && timer.session.exIdx < day.exercises.length
   const allDone = day.exercises.length > 0 && day.exercises.every((e) => e.done)
+  const showDone = allDone
+  const showStop = workoutActive && !allDone
 
   const done = day.exercises.filter((e) => e.done).length
   const pct = day.exercises.length ? Math.round((done / day.exercises.length) * 100) : 0
@@ -148,7 +150,7 @@ export default function DayDetailScreen() {
               />
             </div>
           </div>
-          {confirmStop && workoutActive ? (
+          {confirmStop && showStop ? (
             <div className="mt-1 flex flex-col gap-2">
               <span className="text-center text-[12px] text-sub">
                 You sure? This ends the workout.
@@ -175,34 +177,34 @@ export default function DayDetailScreen() {
           ) : (
             <button
               onClick={
-                workoutActive
-                  ? () => setConfirmStop(true)
-                  : allDone
-                    ? restartDay
+                showDone
+                  ? restartDay
+                  : showStop
+                    ? () => setConfirmStop(true)
                     : () => {
                         setConfirmStop(false)
                         nav.go('timer', { dayId: day.id })
                       }
               }
               className={`mt-1 flex h-11 items-center justify-center gap-2 rounded-[24px] ${
-                workoutActive ? 'bg-[#DB3B3E]/15' : allDone ? 'bg-good/15' : 'bg-accent'
+                showStop ? 'bg-[#DB3B3E]/15' : showDone ? 'bg-good/15' : 'bg-accent'
               }`}
             >
-              {workoutActive ? (
+              {showStop ? (
                 <Square size={15} color="#DB3B3E" />
-              ) : allDone ? (
+              ) : showDone ? (
                 <CircleCheck size={17} color="#17C964" strokeWidth={2.5} />
               ) : (
                 <Play size={15} color="#FCFCFC" fill="#FCFCFC" />
               )}
               <span
                 className={`text-[14px] font-medium ${
-                  workoutActive ? 'text-[#DB3B3E]' : allDone ? 'text-good' : 'text-soft'
+                  showStop ? 'text-[#DB3B3E]' : showDone ? 'text-good' : 'text-soft'
                 }`}
               >
-                {workoutActive
+                {showStop
                   ? 'Stop Workout'
-                  : allDone
+                  : showDone
                     ? 'Workout Done · Start Again'
                     : 'Start Workout'}
               </span>

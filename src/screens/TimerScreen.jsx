@@ -16,7 +16,7 @@ export default function TimerScreen() {
   }, [nav.dayId, session, useDay])
 
   const todayIdx = (new Date().getDay() + 6) % 7
-  const scheduledDay = store.days.find((d) => (d.weekday + 6) % 7 === todayIdx)
+  const scheduledDay = store.days.find((d) => d.weekday && (d.weekday + 6) % 7 === todayIdx)
   const plannedDay =
     store.days.find((d) => d.id === store.plan[dateKey(new Date())]) ?? null
   const sessionDay = session ? store.days.find((d) => d.id === session?.dayId) : null
@@ -24,9 +24,9 @@ export default function TimerScreen() {
   const allDone = !!day && !!session && session.exIdx >= day.exercises.length
   const raw = day?.exercises[session?.exIdx]
   const ex = raw && !raw.done ? raw : day?.exercises.find((e) => !e.done)
-  const isLastRest =
-    !!session && !!ex && (session.set ?? 1) >= ex.sets &&
-    !day.exercises.slice(session.exIdx + 1).some((e) => !e.done)
+  const justDone = session?.justCompletedId
+    ? day?.exercises.find((e) => e.id === session.justCompletedId)
+    : null
   const hint = !session
     ? 'Tap ring to start'
     : !running
@@ -133,11 +133,11 @@ export default function TimerScreen() {
             </span>
             <span className="text-[68px] font-semibold leading-none tracking-[-2px] text-ink">{fmt(left)}</span>
             <span className="max-w-[240px] text-center text-[12px] text-faint">{hint}</span>
-            {!running && left === 0 && isLastRest && (
+            {!running && left === 0 && justDone && (
               <span className="mt-0.5 flex items-center gap-1.5 rounded-full bg-good/15 px-3 py-1.5">
                 <CircleCheck size={12} color="#17C964" />
                 <span className="text-[10px] font-semibold text-good">
-                  Last set of {ex.name} · completes on rest end
+                  {justDone.name} done
                 </span>
               </span>
             )}

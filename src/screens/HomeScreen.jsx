@@ -68,6 +68,7 @@ export default function HomeScreen() {
   const markers = useMemo(() => {
     const map = {}
     for (const d of days) {
+      if (!d.weekday) continue
       const idx = (d.weekday + 6) % 7
       map[idx] = d.color === DAY_COLORS.push ? 'push' : d.color === DAY_COLORS.pull ? 'pull' : 'legs'
     }
