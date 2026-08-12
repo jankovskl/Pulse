@@ -1,4 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from './supabase'
+import { getUserId, subscribeUser } from './auth'
+import { loadRemote, pushState, loginLift, mergeState } from './sync'
 
 const KEY = 'pulse.state.v2'
 
@@ -48,6 +51,55 @@ const StoreCtx = createContext(null)
 
 export function StoreProvider({ children }) {
   const [state, setState] = useState(load)
+  const stateRef = useRef(state)
+  const lastSynced = useRef(0)
+
+  function recordLift(exercise, weight) {
+    const userId = getUserId()
+    if (!supabase || !userId || !weight) return
+    loginLift(supabase, userId, exercise, weight).catch(() => {})
+  }
+
+  async function syncOnLogin(userId) {
+    if (!supabase || !userId) return
+    try {
+      const remote = await loadRemote(supabase, userId)
+      const merged = mergeState(stateRef.current, remote, lastSynced.current)
+      if (merged && merged !== stateRef.current) setState(merged)
+      lastSynced.current = Date.now()
+      await pushState(supabase, userId, merged ?? stateRef.current)
+    } catch {}
+  }
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
+  // Pull-then-push when the user signs in or out.
+  useEffect(() => {
+    return subscribeUser((userId) => {
+      if (userId) syncOnLogin(userId)
+    })
+  }, [])
+
+  // Debounced push of every local change to the cloud while signed in.
+  useEffect(() => {
+    const userId = getUserId()
+    if (!supabase || !userId) return
+    let cancelled = false
+    const t = setTimeout(() => {
+      if (cancelled) return
+      pushState(supabase, userId, state)
+        .then(() => {
+          lastSynced.current = Date.now()
+        })
+        .catch(() => {})
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [state])
 
   useEffect(() => {
     setState((s) => {
@@ -145,6 +197,7 @@ export function StoreProvider({ children }) {
       },
 
       toggleExercise(dayId, exId) {
+        let fresh = []
         setState((s) => {
           const prevDay = s.days.find((d) => d.id === dayId)
           const prevAll =
@@ -174,7 +227,7 @@ export function StoreProvider({ children }) {
             const logged = new Set(
               sessions.filter((x) => x.full === full).map((x) => x.exercise),
             )
-            const fresh = []
+            fresh = []
             for (const e of nextDay.exercises) {
               if (!e.done || logged.has(e.name)) continue
               const prevBest = Math.max(
@@ -195,6 +248,7 @@ export function StoreProvider({ children }) {
           }
           return { ...s, days, sessions }
         })
+        if (fresh.length) fresh.forEach((f) => recordLift(f.exercise, f.weight))
       },
 
       patchExercise(dayId, exId, patch) {
@@ -219,6 +273,7 @@ export function StoreProvider({ children }) {
             ...s.sessions,
           ].slice(0, 60),
         }))
+        recordLift(exerciseName, weight)
       },
 
       setSettings(patch) {
