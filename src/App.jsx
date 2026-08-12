@@ -67,7 +67,7 @@ function NekoCat() {
       const origTick = neko.processOriginalTick.bind(neko)
       neko.processOriginalTick = () => {
         origTick()
-        if (neko.state === NekoState.AWAKE) {
+        if (neko.state === 2) { // NekoState.AWAKE = 2
           neko.calcDirection(neko.moveDX, neko.moveDY)
         }
       }
