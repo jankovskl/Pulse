@@ -182,3 +182,20 @@ export function useDialog() {
   const [open, setOpen] = useState(false)
   return { open, setOpen, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) }
 }
+
+export function Modal({ open, onClose, children }) {
+  if (!open) return null
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[420px] rounded-t-[28px] bg-card p-5 pb-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
