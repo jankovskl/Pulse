@@ -13,7 +13,9 @@ import {
 } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { fetchChangelog } from '../lib/changelog'
-import { Avatar, initialsOf, Screen, Toggle } from '../components/ui'
+import { useAuth } from '../lib/auth'
+import AuthModal from '../components/AuthModal'
+import { Avatar, initialsOf, Screen, Toggle, useDialog } from '../components/ui'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#FF383C', '#0485F7']
 
@@ -35,7 +37,9 @@ function Row({ icon, title, subtitle, right, onClick }) {
 
 export default function SettingsScreen() {
   const store = useStore()
+  const auth = useAuth()
   const fileRef = useRef(null)
+  const authDialog = useDialog()
   const [changelog, setChangelog] = useState(null)
   const [failed, setFailed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -91,14 +95,37 @@ export default function SettingsScreen() {
         </div>
 
         <div className="flex items-center gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-white/10">
-          <Avatar initials={initialsOf('You')} size={44} />
+          <Avatar initials={initialsOf(auth.user?.email ?? 'You')} size={44} />
           <div className="flex flex-1 flex-col">
-            <span className="text-[15px] font-semibold text-ink">Mateus</span>
-            <span className="text-[12px] text-faint">mateus@example.com</span>
+            {auth.user ? (
+              <>
+                <span className="text-[15px] font-semibold text-ink">
+                  {auth.user.email.split('@')[0]}
+                </span>
+                <span className="text-[12px] text-faint">{auth.user.email}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[15px] font-semibold text-ink">Not signed in</span>
+                <span className="text-[12px] text-faint">Tap Account to sync across devices</span>
+              </>
+            )}
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15">
-            <Pencil size={14} color="var(--color-accent)" />
-          </button>
+          {auth.user ? (
+            <button
+              onClick={() => auth.signOut()}
+              className="flex h-9 items-center rounded-full bg-accent/15 px-3 text-[12px] font-semibold text-accent"
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              onClick={authDialog.openDialog}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15"
+            >
+              <Pencil size={14} color="var(--color-accent)" />
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -106,7 +133,8 @@ export default function SettingsScreen() {
           <Row
             icon={<User size={15} color="var(--color-accent)" />}
             title="Account"
-            subtitle="Profile details and avatar"
+            subtitle={auth.user ? 'Signed in · manage sync' : 'Sign in to sync your data'}
+            onClick={authDialog.openDialog}
           />
           <Row
             icon={<Database size={15} color="var(--color-accent)" />}
@@ -262,6 +290,8 @@ export default function SettingsScreen() {
           </div>
         </div>
       )}
+
+      <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>
   )
 }
