@@ -38,4 +38,9 @@ create policy "lifts writable by owner" on public.lifts
   with check (auth.uid() = user_id);
 
 -- 3. Realtime (so a logged-in device's leaderboard entry updates live) -------
-alter publication supabase_realtime add table public.lifts;
+do $$
+begin
+  alter publication supabase_realtime add table public.lifts;
+exception
+  when duplicate_object then null;
+end $$;
