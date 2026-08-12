@@ -1,17 +1,18 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Cat,
   Check,
   ChevronRight,
-  Code,
   Database,
   Download,
   Pencil,
   Rocket,
   Upload,
   User,
+  X,
 } from 'lucide-react'
 import { useStore } from '../lib/store'
+import { fetchChangelog } from '../lib/changelog'
 import { Avatar, initialsOf, Screen, Toggle } from '../components/ui'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#FF383C', '#0485F7']
@@ -35,6 +36,26 @@ function Row({ icon, title, subtitle, right, onClick }) {
 export default function SettingsScreen() {
   const store = useStore()
   const fileRef = useRef(null)
+  const [changelog, setChangelog] = useState(null)
+  const [failed, setFailed] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchChangelog()
+      .then((entries) => {
+        if (!cancelled) {
+          setChangelog(entries)
+          setFailed(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function exportData() {
     const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], {
@@ -158,12 +179,12 @@ export default function SettingsScreen() {
           <Row
             icon={<Rocket size={15} color="var(--color-accent)" />}
             title="What's new"
-            subtitle="Version 2.0.1 — rest timer, charts"
-          />
-          <Row
-            icon={<Code size={15} color="var(--color-accent)" />}
-            title="Changelog"
-            subtitle="Everything that landed recently"
+            subtitle={
+              changelog?.length
+                ? `v${changelog[0].version} · ${changelog[0].items[0] ?? 'recent changes'}`
+                : 'Version 2.0.1 — rest timer, charts'
+            }
+            onClick={() => setSheetOpen(true)}
           />
         </div>
 
@@ -172,6 +193,75 @@ export default function SettingsScreen() {
           <span className="text-[10px] text-faint/60">Local prototype · data stays in your browser</span>
         </div>
       </div>
+
+      {sheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+          onClick={() => setSheetOpen(false)}
+        >
+          <div
+            className="flex max-h-[70dvh] w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-semibold text-soft">What's new</span>
+                <span className="text-[12px] text-muted">Changes from the latest pushes to GitHub</span>
+              </div>
+              <button
+                onClick={() => setSheetOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
+              >
+                <X size={15} color="#A1A1AA" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-4 overflow-y-auto">
+              {failed ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <span className="text-[13px] text-sub">Couldn't load updates</span>
+                  <button
+                    onClick={() => {
+                      setFailed(false)
+                      fetchChangelog()
+                        .then(setChangelog)
+                        .catch(() => setFailed(true))
+                    }}
+                    className="h-8 rounded-[24px] bg-accent px-4 text-[13px] text-white"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : !changelog ? (
+                <div className="flex items-center justify-center gap-2 py-8">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-tile border-t-accent" />
+                  <span className="text-[13px] text-sub">Loading updates…</span>
+                </div>
+              ) : changelog.length === 0 ? (
+                <span className="py-8 text-center text-[13px] text-sub">No changes recorded yet.</span>
+              ) : (
+                changelog.map((entry) => (
+                  <div key={entry.version} className="flex flex-col gap-1.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] font-semibold tracking-[1.4px] text-accent-light">
+                        v{entry.version}
+                      </span>
+                      {entry.date && <span className="text-[11px] text-faint">{entry.date}</span>}
+                    </div>
+                    <ul className="flex flex-col gap-1.5">
+                      {entry.items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-soft">
+                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Screen>
   )
 }
