@@ -180,7 +180,7 @@ export function TimerProvider({ children }) {
     store.setSettings({ notify: v })
   }
 
-  function useDay(dayId) {
+  function setDay(dayId) {
     const day = storeRef.current.days.find((d) => d.id === dayId)
     if (!day || !day.exercises.length) {
       setSession({ dayId, exIdx: 0, set: 1, justCompletedId: null })
@@ -216,7 +216,7 @@ function advanceSession() {
 
   return (
     <TimerCtx.Provider
-      value={{ total, left, running, paused, notify, session, start, toggle, reset, setNotify, useDay, endWorkout }}
+      value={{ total, left, running, paused, notify, session, start, toggle, reset, setNotify, setDay, endWorkout }}
     >
       {children}
     </TimerCtx.Provider>

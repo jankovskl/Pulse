@@ -9,11 +9,11 @@ export default function TimerScreen() {
   const timer = useTimer()
   const store = useStore()
   const nav = useNav()
-  const { total, left, running, paused, notify, session, start, toggle, reset, setNotify, useDay } = timer
+  const { total, left, running, paused, notify, session, start, toggle, reset, setNotify, setDay } = timer
 
   useEffect(() => {
-    if (nav.dayId && session?.dayId !== nav.dayId) useDay(nav.dayId)
-  }, [nav.dayId, session, useDay])
+    if (nav.dayId && session?.dayId !== nav.dayId) setDay(nav.dayId)
+  }, [nav.dayId, session, setDay])
 
   const todayIdx = (new Date().getDay() + 6) % 7
   const scheduledDay = store.days.find((d) => d.weekday && (d.weekday + 6) % 7 === todayIdx)
