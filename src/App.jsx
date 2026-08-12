@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { StoreProvider, useStore } from './lib/store'
+import { AuthProvider } from './lib/auth'
 import { TimerProvider } from './lib/timer'
 import { NavProvider, useNav } from './components/ui'
 import HomeScreen from './screens/HomeScreen'
@@ -101,15 +102,17 @@ function NekoCat() {
 
 function App() {
   return (
-    <StoreProvider>
-      <AccentSync />
-      <NekoCat />
-      <TimerProvider>
-        <NavProvider>
-          <Router />
-        </NavProvider>
-      </TimerProvider>
-    </StoreProvider>
+    <AuthProvider>
+      <StoreProvider>
+        <AccentSync />
+        <NekoCat />
+        <TimerProvider>
+          <NavProvider>
+            <Router />
+          </NavProvider>
+        </TimerProvider>
+      </StoreProvider>
+    </AuthProvider>
   )
 }
 
