@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowRight, CircleCheck, MoonStar, Pause, Play, RotateCcw } from 'lucide-react'
+import { ArrowRight, CircleCheck, MoonStar, RotateCcw } from 'lucide-react'
 import { dateKey, REST_PRESETS } from '../lib/data'
 import { fmt, useTimer } from '../lib/timer'
 import { useStore } from '../lib/store'
@@ -96,7 +96,7 @@ export default function TimerScreen() {
           </div>
         )}
 
-        <div className="relative flex h-[280px] w-[280px] items-center justify-center">
+        <div className="relative flex h-[280px] w-[280px] items-center justify-center overflow-hidden rounded-full">
           <svg width="280" height="280" viewBox="0 0 280 280" className="-rotate-90">
             <defs>
               <radialGradient id="ringHalo" cx="50%" cy="50%" r="50%">
@@ -184,19 +184,6 @@ export default function TimerScreen() {
             Reset
           </button>
         </div>
-        <button
-          onClick={toggle}
-          className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-accent"
-        >
-          {running && !paused ? (
-            <Pause size={18} color="#FFFFFF" fill="#FFFFFF" />
-          ) : (
-            <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
-          )}
-          <span className="text-[16px] font-medium text-white">
-            {running ? (paused ? 'Resume rest' : 'Pause') : left === 0 ? 'Restart' : 'Start rest'}
-          </span>
-        </button>
       </div>
     </Screen>
   )
