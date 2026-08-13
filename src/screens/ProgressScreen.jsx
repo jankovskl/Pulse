@@ -113,7 +113,11 @@ export default function ProgressScreen() {
     () => Math.max(0, ...exSessions.map((s) => s.weight ?? 0)),
     [exSessions],
   )
-  const bestReps = useMemo(() => Math.max(0, ...exSessions.map((s) => s.reps ?? 0)), [exSessions])
+  const bestReps = useMemo(() => {
+    const w = Math.max(0, ...exSessions.map((s) => s.weight ?? 0))
+    if (w === 0) return 0
+    return Math.max(0, ...exSessions.filter((s) => (s.weight ?? 0) === w).map((s) => s.reps ?? 0))
+  }, [exSessions])
   const first = exSessions.length ? exSessions[exSessions.length - 1].weight : 0
   const gain = bestWeight - first
   const gainPct = first > 0 ? Math.round((gain / first) * 1000) / 10 : 0
