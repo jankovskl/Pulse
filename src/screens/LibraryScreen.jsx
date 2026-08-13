@@ -45,7 +45,7 @@ export default function LibraryScreen() {
             onClick={() => (fromDay ? nav.go('day', { dayId: fromDay.id }) : nav.go('home'))}
             className="flex h-9 w-9 items-center justify-center rounded-3xl"
           >
-            <ChevronLeft size={18} color="#F4F4F6" />
+            <ChevronLeft size={18} color="var(--color-ink)" />
           </button>
           <div className="flex flex-col">
             <h1 className="text-[26px] font-bold text-ink">Exercise Library</h1>
@@ -53,8 +53,8 @@ export default function LibraryScreen() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-[14px] bg-field p-2.5 outline outline-1 outline-white/10">
-          <Search size={16} color="#A1A1AA" />
+        <div className="flex items-center gap-2 rounded-[14px] bg-field p-2.5 outline outline-1 outline-line/10">
+          <Search size={16} color="var(--color-sub)" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -64,9 +64,9 @@ export default function LibraryScreen() {
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="flex h-5 w-5 items-center justify-center rounded-[12px] bg-field outline outline-1 outline-white/10"
+              className="flex h-5 w-5 items-center justify-center rounded-[12px] bg-field outline outline-1 outline-line/10"
             >
-              <X size={14} color="#A1A1AA" />
+              <X size={14} color="var(--color-sub)" />
             </button>
           )}
         </div>
@@ -100,7 +100,7 @@ export default function LibraryScreen() {
             return (
               <div
                 key={ex.name}
-                className="flex items-center justify-between border-b border-white/5 py-3 last:border-b-0"
+                className="flex items-center justify-between border-b border-line/5 py-3 last:border-b-0"
               >
                 <div className="flex flex-col">
                   <span className="text-[14px] font-medium text-ink">{ex.name}</span>
@@ -111,14 +111,14 @@ export default function LibraryScreen() {
                     onClick={() => toggleAdd(ex)}
                     className={`flex h-8 items-center gap-1 rounded-[24px] px-3 outline outline-1 ${
                       added
-                        ? 'bg-field text-good outline-white/10'
-                        : 'bg-field text-ink outline-white/10'
+                        ? 'bg-field text-good outline-line/10'
+                        : 'bg-field text-ink outline-line/10'
                     }`}
                   >
                     {added ? (
                       <Check size={14} color="#17C964" strokeWidth={2.5} />
                     ) : (
-                      <Plus size={14} color="#F4F4F6" strokeWidth={2.5} />
+                      <Plus size={14} color="var(--color-ink)" strokeWidth={2.5} />
                     )}
                     <span className={`text-[13px] ${added ? 'text-good' : 'text-ink'}`}>
                       {added ? 'Added' : 'Add'}
