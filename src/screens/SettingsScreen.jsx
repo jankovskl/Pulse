@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Cat,
   Check,
+  ChevronLeft,
   ChevronRight,
   Cloud,
   CloudCheck,
   CloudOff,
   Database,
   Download,
+  Palette,
   Pencil,
   Rocket,
   Upload,
@@ -40,6 +42,12 @@ function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15' })
   )
 }
 
+function themeGradient(t) {
+  return t.colors.mid
+    ? `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.mid} 50%, ${t.colors.bg2} 85.355%)`
+    : `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.bg2} 85.355%)`
+}
+
 function ThemeSwatch({ t, active, onPick }) {
   return (
     <button
@@ -48,11 +56,7 @@ function ThemeSwatch({ t, active, onPick }) {
       className={`flex h-[72px] flex-col justify-between rounded-[14px] p-2.5 outline outline-1 transition-transform active:scale-[0.97] ${
         active ? 'outline-2 outline-accent' : 'outline-line/10'
       }`}
-      style={{
-        background: t.colors.mid
-          ? `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.mid} 50%, ${t.colors.bg2} 85.355%)`
-          : `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.bg2} 85.355%)`,
-      }}
+      style={{ background: themeGradient(t) }}
     >
       <span
         className="h-3 w-3 rounded-full"
@@ -75,6 +79,7 @@ export default function SettingsScreen() {
   const [failed, setFailed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
+  const [view, setView] = useState('main')
 
   useEffect(() => {
     const on = () => setOnline(true)
@@ -131,7 +136,75 @@ export default function SettingsScreen() {
 
   return (
     <Screen activeTab="settings">
-      <div className="flex flex-col gap-5">
+      {view === 'appearance' ? (
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView('main')}
+              aria-label="Back"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-tile"
+            >
+              <ChevronLeft size={16} color="var(--color-sub)" />
+            </button>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-[26px] font-bold text-ink">Appearance</h1>
+              <span className="text-[12px] text-faint">Theme, gradients & accent color</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-semibold text-ink">Theme</span>
+              <span className="text-[12px] text-muted">{themeById(store.settings.theme).name}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {THEME_PRESETS.filter((t) => !t.id.startsWith('g-')).map((t) => (
+                <ThemeSwatch
+                  key={t.id}
+                  t={t}
+                  active={store.settings.theme === t.id}
+                  onPick={() => store.setSettings({ theme: t.id })}
+                />
+              ))}
+            </div>
+            <span className="mt-3 text-[10px] font-semibold tracking-[1.4px] text-muted">GRADIENTS</span>
+            <div className="grid grid-cols-3 gap-2">
+              {THEME_PRESETS.filter((t) => t.id.startsWith('g-')).map((t) => (
+                <ThemeSwatch
+                  key={t.id}
+                  t={t}
+                  active={store.settings.theme === t.id}
+                  onPick={() => store.setSettings({ theme: t.id })}
+                />
+              ))}
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-[14px] font-semibold text-ink">Accent color</span>
+              <span className="text-[12px] text-muted">{store.settings.accent}</span>
+            </div>
+            <div className="flex items-center gap-3.5">
+              {THEMES.map((t) => {
+                const active = store.settings.accent === t
+                return (
+                  <button
+                    key={t}
+                    onClick={() => store.setSettings({ accent: t })}
+                    title={`Set accent ${t}`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-transform ${
+                      active ? 'scale-105 outline outline-2 outline-white/25 outline-offset-2' : 'hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: t }}
+                  >
+                    {active && <Check size={16} color="#FFFFFF" strokeWidth={3} />}
+                  </button>
+                )
+              })}
+            </div>
+            <span className="text-[11px] text-faint">Saved on this device — accent updates everywhere</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
           <h1 className="text-[26px] font-bold text-ink">Settings</h1>
           <span className="text-[12px] text-faint">Profile, data & preferences</span>
@@ -238,56 +311,20 @@ export default function SettingsScreen() {
           />
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4">
-          <span className="text-[11px] font-semibold tracking-[1.4px] text-muted">APPEARANCE</span>
-          <div className="flex items-center justify-between">
-            <span className="text-[14px] font-semibold text-ink">Theme</span>
-            <span className="text-[12px] text-muted">{themeById(store.settings.theme).name}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {THEME_PRESETS.filter((t) => !t.id.startsWith('g-')).map((t) => (
-              <ThemeSwatch
-                key={t.id}
-                t={t}
-                active={store.settings.theme === t.id}
-                onPick={() => store.setSettings({ theme: t.id })}
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">APPEARANCE</div>
+          <Row
+            icon={<Palette size={15} color="var(--color-accent)" />}
+            title="Appearance"
+            subtitle={themeById(store.settings.theme).name}
+            onClick={() => setView('appearance')}
+            right={
+              <span
+                className="h-8 w-8 rounded-[10px]"
+                style={{ background: themeGradient(themeById(store.settings.theme)) }}
               />
-            ))}
-          </div>
-          <span className="mt-3 text-[10px] font-semibold tracking-[1.4px] text-muted">GRADIENTS</span>
-          <div className="grid grid-cols-3 gap-2">
-            {THEME_PRESETS.filter((t) => t.id.startsWith('g-')).map((t) => (
-              <ThemeSwatch
-                key={t.id}
-                t={t}
-                active={store.settings.theme === t.id}
-                onPick={() => store.setSettings({ theme: t.id })}
-              />
-            ))}
-          </div>
-          <div className="mt-1 flex items-center justify-between">
-            <span className="text-[14px] font-semibold text-ink">Accent color</span>
-            <span className="text-[12px] text-muted">{store.settings.accent}</span>
-          </div>
-          <div className="flex items-center gap-3.5">
-            {THEMES.map((t) => {
-              const active = store.settings.accent === t
-              return (
-                <button
-                  key={t}
-                  onClick={() => store.setSettings({ accent: t })}
-                  title={`Set accent ${t}`}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full transition-transform ${
-                    active ? 'scale-105 outline outline-2 outline-white/25 outline-offset-2' : 'hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: t }}
-                >
-                  {active && <Check size={16} color="#FFFFFF" strokeWidth={3} />}
-                </button>
-              )
-            })}
-          </div>
-          <span className="text-[11px] text-faint">Saved on this device — accent updates everywhere</span>
+            }
+          />
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -318,6 +355,7 @@ export default function SettingsScreen() {
           <span className="text-[10px] text-faint/60">Local prototype · data stays in your browser</span>
         </div>
       </div>
+      )}
 
       {sheetOpen && (
         <div
