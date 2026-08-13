@@ -82,7 +82,7 @@ export function Screen({ children, activeTab }) {
   return (
     <div className="screen-bg relative mx-auto flex min-h-dvh w-full max-w-[420px] flex-col">
       <div className="flex-1 px-5 pb-2 pt-3">{children}</div>
-      <div className="sticky bottom-0">
+      <div className="sticky bottom-0 z-20">
         <TabDock active={activeTab} />
       </div>
       {timer.running && nav.name !== 'timer' && (
