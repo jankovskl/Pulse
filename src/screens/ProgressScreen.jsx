@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, CalendarCheck, Check, ChevronDown, Dumbbell, Repeat, Trophy } from 'lucide-react'
+import { ArrowRight, CalendarCheck, Check, ChevronDown, Dumbbell, Lock, Repeat, Trophy } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { fetchTopLifts, buildRows, fetchUserLift } from '../lib/leaderboard'
 import { fetchProfiles } from '../lib/profile'
-import { Avatar, initialsOf, Screen, useNav } from '../components/ui'
+import AuthModal from '../components/AuthModal'
+import { Avatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
 
 function WeightChart({ series }) {
   if (!series || series.length === 0) return null
@@ -93,6 +94,7 @@ export default function ProgressScreen() {
   const [open, setOpen] = useState(false)
   const [liveRows, setLiveRows] = useState(null)
   const [liveLoading, setLiveLoading] = useState(false)
+  const authDialog = useDialog()
 
   const sessions = store.sessions
   const exOptions = useMemo(
@@ -272,25 +274,50 @@ export default function ProgressScreen() {
               </div>
             </div>
           </div>
-          {!lbRows ? (
-            <div className="py-3 text-center">
-              <span className="text-[12px] text-faint">Loading leaderboard…</span>
-            </div>
-          ) : (
-            lbRows.slice(0, 4).map((r) => (
-              <div key={r.name} className="flex items-center gap-3">
-                <span className={`w-6 text-center text-[13px] ${r.you ? 'font-bold text-accent' : 'text-faint'}`}>
-                  {r.rank}
-                </span>
-                <Avatar initials={initialsOf(r.name)} color={r.color} size={26} src={r.avatar} />
-                <div className="flex flex-1 flex-col leading-tight">
-                  <span className="text-[13px] font-medium text-ink">{r.name}</span>
-                  <span className="text-[11px] text-muted">{r.handle}</span>
+          <div className="relative">
+            <div
+              className={`flex flex-col gap-2.5 ${
+                !auth.user ? 'pointer-events-none select-none blur-[8px]' : ''
+              }`}
+            >
+              {!lbRows ? (
+                <div className="py-3 text-center">
+                  <span className="text-[12px] text-faint">Loading leaderboard…</span>
                 </div>
-                <span className="text-[13px] font-semibold text-accent">{r.weight} kg</span>
+              ) : (
+                lbRows.slice(0, 4).map((r) => (
+                  <div key={r.name} className="flex items-center gap-3">
+                    <span className={`w-6 text-center text-[13px] ${r.you ? 'font-bold text-accent' : 'text-faint'}`}>
+                      {r.rank}
+                    </span>
+                    <Avatar initials={initialsOf(r.name)} color={r.color} size={26} src={r.avatar} />
+                    <div className="flex flex-1 flex-col leading-tight">
+                      <span className="text-[13px] font-medium text-ink">{r.name}</span>
+                      <span className="text-[11px] text-muted">{r.handle}</span>
+                    </div>
+                    <span className="text-[13px] font-semibold text-accent">{r.weight} kg</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {!auth.user && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                  <Lock size={16} color="var(--color-accent)" />
+                </div>
+                <span className="text-[13px] font-semibold text-ink">
+                  Log in to view the leaderboard
+                </span>
+                <button
+                  onClick={authDialog.openDialog}
+                  className="mt-0.5 h-9 rounded-[12px] bg-accent px-4 text-[13px] font-semibold text-white"
+                >
+                  Log in
+                </button>
               </div>
-            ))
-          )}
+            )}
+          </div>
           <button
             onClick={() => nav.go('leaderboard', { ex: current })}
             className="flex items-center gap-1 self-end text-[12px] text-accent"
@@ -299,6 +326,8 @@ export default function ProgressScreen() {
             <ArrowRight size={12} color="var(--color-accent)" />
           </button>
         </div>
+
+        <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
 
         <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
           <div className="flex items-center justify-between">

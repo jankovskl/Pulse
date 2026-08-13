@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronLeft, Dumbbell } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, Dumbbell, Lock } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { fetchTopLifts, buildRows } from '../lib/leaderboard'
 import { fetchProfiles } from '../lib/profile'
-import { Avatar, initialsOf, Screen, useNav } from '../components/ui'
+import AuthModal from '../components/AuthModal'
+import { Avatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
 
 export default function LeaderboardScreen() {
   const nav = useNav()
   const store = useStore()
   const auth = useAuth()
+  const authDialog = useDialog()
   const [exercise, setExercise] = useState(nav.ex || '')
   const [open, setOpen] = useState(false)
   const [liveRows, setLiveRows] = useState(null)
@@ -124,70 +126,100 @@ export default function LeaderboardScreen() {
           )}
         </div>
 
-        {!hasUser && (
+        {!auth.user ? (
           <p className="text-[11px] leading-relaxed text-faint">
-            {auth.user
-              ? `Log a ${current} workout to place your best lift on this board.`
-              : `Log a ${current} workout (and sign in) to place your best lift on this board.`}
+            Log in to see real lifts from athletes worldwide.
           </p>
+        ) : (
+          !hasUser && (
+            <p className="text-[11px] leading-relaxed text-faint">
+              Log a {current} workout to place your best lift on this board.
+            </p>
+          )
         )}
 
-        <div className="flex items-end justify-center gap-2.5 pt-4">
-          {[top3[1], top3[0], top3[2]].filter(Boolean).map((r) => (
-            <div key={r.name} className="flex w-[92px] flex-col items-center">
-              <span className="mb-1.5 text-[11px] font-semibold text-faint">
-                {r.name.split(' ')[0]}
-              </span>
-              <div
-                className={`flex w-full flex-col items-center justify-end rounded-[20px] outline outline-1 ${
-                  r.rank === 1
-                    ? 'h-[104px] bg-gradient-to-b from-[#F5A52422] to-transparent outline-[#F5A52440]'
-                    : r.rank === 2
-                      ? 'h-[84px] bg-gradient-to-b from-[#A1A1AA22] to-transparent outline-[#A1A1AA40]'
-                      : 'h-[64px] bg-gradient-to-b from-[#B08D5722] to-transparent outline-[#B08D5740]'
-                }`}
-              >
-                <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
-                <span className="mt-1 text-[13px] font-bold text-ink">{r.weight}</span>
-              </div>
-              <span
-                className={`mt-1.5 text-[15px] ${
-                  r.rank === 1 ? 'text-gold' : r.rank === 2 ? 'text-silver' : 'text-bronze'
-                }`}
-              >
-                {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉'}
-              </span>
+        <div className="relative">
+          <div
+            className={`flex flex-col gap-5 ${
+              !auth.user ? 'pointer-events-none select-none blur-[8px]' : ''
+            }`}
+          >
+            <div className="flex items-end justify-center gap-2.5 pt-4">
+              {[top3[1], top3[0], top3[2]].filter(Boolean).map((r) => (
+                <div key={r.name} className="flex w-[92px] flex-col items-center">
+                  <span className="mb-1.5 text-[11px] font-semibold text-faint">
+                    {r.name.split(' ')[0]}
+                  </span>
+                  <div
+                    className={`flex w-full flex-col items-center justify-end rounded-[20px] outline outline-1 ${
+                      r.rank === 1
+                        ? 'h-[104px] bg-gradient-to-b from-[#F5A52422] to-transparent outline-[#F5A52440]'
+                        : r.rank === 2
+                          ? 'h-[84px] bg-gradient-to-b from-[#A1A1AA22] to-transparent outline-[#A1A1AA40]'
+                          : 'h-[64px] bg-gradient-to-b from-[#B08D5722] to-transparent outline-[#B08D5740]'
+                    }`}
+                  >
+                    <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
+                    <span className="mt-1 text-[13px] font-bold text-ink">{r.weight}</span>
+                  </div>
+                  <span
+                    className={`mt-1.5 text-[15px] ${
+                      r.rank === 1 ? 'text-gold' : r.rank === 2 ? 'text-silver' : 'text-bronze'
+                    }`}
+                  >
+                    {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉'}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="flex flex-col gap-2">
-          {rest.map((r) => (
-            <div
-              key={r.name}
-              className={`flex items-center gap-3 rounded-[16px] px-3.5 py-3 ${
-                r.you
-                  ? 'bg-accent/15 outline outline-1 outline-accent/40'
-                  : 'bg-surface outline outline-1 outline-line/10'
-              }`}
-            >
-              <span
-                className={`w-5 text-center text-[13px] ${r.you ? 'font-bold text-accent' : 'text-faint'}`}
-              >
-                {r.rank}
-              </span>
-              <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
-              <div className="flex flex-1 flex-col leading-tight">
-                <span className="text-[14px] font-medium text-ink">{r.name}</span>
-                <span className="text-[11px] text-muted">{r.handle}</span>
-              </div>
-              <span className={`text-[14px] font-semibold ${r.you ? 'text-accent' : 'text-ink'}`}>
-                {r.weight} kg
-              </span>
+            <div className="flex flex-col gap-2">
+              {rest.map((r) => (
+                <div
+                  key={r.name}
+                  className={`flex items-center gap-3 rounded-[16px] px-3.5 py-3 ${
+                    r.you
+                      ? 'bg-accent/15 outline outline-1 outline-accent/40'
+                      : 'bg-surface outline outline-1 outline-line/10'
+                  }`}
+                >
+                  <span
+                    className={`w-5 text-center text-[13px] ${r.you ? 'font-bold text-accent' : 'text-faint'}`}
+                  >
+                    {r.rank}
+                  </span>
+                  <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
+                  <div className="flex flex-1 flex-col leading-tight">
+                    <span className="text-[14px] font-medium text-ink">{r.name}</span>
+                    <span className="text-[11px] text-muted">{r.handle}</span>
+                  </div>
+                  <span className={`text-[14px] font-semibold ${r.you ? 'text-accent' : 'text-ink'}`}>
+                    {r.weight} kg
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {!auth.user && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
+                <Lock size={20} color="var(--color-accent)" />
+              </div>
+              <span className="text-[14px] font-semibold text-ink">Log in to view the leaderboard</span>
+              <span className="text-[12px] text-faint">See real lifts from athletes worldwide</span>
+              <button
+                onClick={authDialog.openDialog}
+                className="mt-1 h-11 rounded-[14px] bg-accent px-6 text-[14px] font-semibold text-white"
+              >
+                Log in
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>
   )
 }
