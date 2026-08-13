@@ -92,7 +92,12 @@ export function AuthProvider({ children }) {
       setError(null)
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
-        setError(error.message)
+        const msg = error.message
+        if (/rate limit/i.test(msg) || /wait/i.test(msg)) {
+          setError('Too many attempts. Please wait a couple of minutes and try again.')
+        } else {
+          setError(msg)
+        }
         return false
       }
       if (data.user) {
@@ -110,7 +115,12 @@ export function AuthProvider({ children }) {
     setError(null)
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
-      setError(error.message)
+      const msg = error.message
+      if (/rate limit/i.test(msg) || /wait/i.test(msg)) {
+        setError('Too many attempts. Please wait a couple of minutes and try again.')
+      } else {
+        setError(msg)
+      }
       return false
     }
     return true
