@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useRef, useEffect } from 'react'
 import { fmt, useTimer } from '../lib/timer'
 
 export const NavCtx = createContext(null)
@@ -38,7 +38,7 @@ export function TabDock({ active }) {
   }
   return (
     <div className="px-4 pb-3 pt-0">
-      <div className="flex h-[56px] items-center gap-0 rounded-[28px] bg-[#17171FCC] p-1.5 outline outline-1 outline-white/10 shadow-[0px_10px_24px_0px_#00000080]">
+      <div className="flex h-[56px] items-center gap-0 rounded-[28px] bg-dock p-1.5 outline outline-1 outline-line/10 shadow-[0px_10px_24px_0px_#00000080]">
         {TABS.map((t) => {
           const isActive = active === t.key
           return (
@@ -54,7 +54,7 @@ export function TabDock({ active }) {
                 width={20}
                 height={20}
                 fill="none"
-                stroke={isActive ? 'var(--color-accent)' : '#9C9CA8'}
+                stroke={isActive ? 'var(--color-accent)' : 'var(--color-faint)'}
                 strokeWidth={isActive ? 2.4 : 2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -80,7 +80,7 @@ export function Screen({ children, activeTab }) {
   const timer = useTimer()
   const nav = useNav()
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-[420px] flex-col bg-[linear-gradient(-157deg,_#0B0B12_14.645%,_#131322_85.355%)]">
+    <div className="screen-bg relative mx-auto flex min-h-dvh w-full max-w-[420px] flex-col bg-[linear-gradient(-157deg,var(--color-bg)_14.645%,var(--color-bg2)_85.355%)]">
       <div className="flex-1 px-5 pb-2 pt-3">{children}</div>
       <div className="sticky bottom-0">
         <TabDock active={activeTab} />
@@ -88,7 +88,7 @@ export function Screen({ children, activeTab }) {
       {timer.running && nav.name !== 'timer' && (
         <button
           onClick={() => nav.go('timer')}
-          className="absolute right-4 top-3 z-50 flex h-[30px] items-center gap-1.5 rounded-full bg-[#1F1F2A] px-3 shadow-[0px_4px_16px_#00000059] outline outline-1 outline-white/[0.08]"
+          className="absolute right-4 top-3 z-50 flex h-[30px] items-center gap-1.5 rounded-full bg-tile px-3 shadow-[0px_4px_16px_#00000059] outline outline-1 outline-line/[0.08]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -158,7 +158,17 @@ export function IconButton({ children, onClick, className = '' }) {
   )
 }
 
-export function Avatar({ initials, color, size = 28, className = '' }) {
+export function Avatar({ initials, color, size = 28, className = '', src = null }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={`shrink-0 rounded-full object-cover ${className}`}
+        style={{ width: size, height: size }}
+      />
+    )
+  }
   return (
     <div
       className={`flex shrink-0 items-center justify-center rounded-full ${className}`}
@@ -183,15 +193,57 @@ export function useDialog() {
   return { open, setOpen, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) }
 }
 
+export function useViewportShift(open) {
+  const panelRef = useRef(null)
+  const [shift, setShift] = useState(0)
+
+  useEffect(() => {
+    if (!open || typeof window === 'undefined' || !window.visualViewport) return
+    const vv = window.visualViewport
+    const fit = () => {
+      const panel = panelRef.current
+      if (!panel) return
+      const margin = 12
+      const visibleTop = vv.offsetTop
+      const visibleBottom = vv.offsetTop + vv.height
+      const rect = panel.getBoundingClientRect()
+      let delta = 0
+      if (rect.bottom > visibleBottom - margin) {
+        delta = rect.bottom - (visibleBottom - margin)
+      }
+      if (rect.top - delta < visibleTop + margin) {
+        delta = rect.top - (visibleTop + margin)
+      }
+      setShift(-delta)
+    }
+    fit()
+    vv.addEventListener('resize', fit)
+    vv.addEventListener('scroll', fit)
+    window.addEventListener('resize', fit)
+    return () => {
+      vv.removeEventListener('resize', fit)
+      vv.removeEventListener('scroll', fit)
+      window.removeEventListener('resize', fit)
+      setShift(0)
+    }
+  }, [open])
+
+  return [panelRef, shift]
+}
+
 export function Modal({ open, onClose, children }) {
+  const [panelRef, shift] = useViewportShift(open)
+
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[420px] rounded-t-[28px] bg-card p-5 pb-8"
+        ref={panelRef}
+        style={{ transform: `translateY(${shift}px)`, transition: 'transform 160ms ease-out' }}
+        className="max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
