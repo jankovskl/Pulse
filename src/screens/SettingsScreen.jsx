@@ -3,6 +3,9 @@ import {
   Cat,
   Check,
   ChevronRight,
+  Cloud,
+  CloudCheck,
+  CloudOff,
   Database,
   Download,
   Pencil,
@@ -14,23 +17,25 @@ import {
 import { useStore } from '../lib/store'
 import { fetchChangelog } from '../lib/changelog'
 import { useAuth } from '../lib/auth'
+import { isSupabaseEnabled } from '../lib/supabase'
+import { THEMES as THEME_PRESETS, themeById } from '../lib/themes'
 import AuthModal from '../components/AuthModal'
-import { Avatar, initialsOf, Screen, Toggle, useDialog } from '../components/ui'
+import { Avatar, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#FF383C', '#0485F7']
 
-function Row({ icon, title, subtitle, right, onClick }) {
+function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15' }) {
   return (
     <button
       onClick={onClick}
       className="flex w-full items-center gap-3 rounded-[16px] bg-card px-3.5 py-3 text-left shadow-[0px_2px_6px_0px_#0000000F]"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent/15">{icon}</div>
+      <div className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${iconBg}`}>{icon}</div>
       <div className="flex flex-1 flex-col leading-tight">
         <span className="text-[14px] font-semibold text-ink">{title}</span>
         {subtitle && <span className="mt-0.5 text-[11px] text-faint">{subtitle}</span>}
       </div>
-      {right ?? <ChevronRight size={14} color="#6E6E7A" />}
+      {right ?? <ChevronRight size={14} color="var(--color-muted)" />}
     </button>
   )
 }
@@ -40,9 +45,22 @@ export default function SettingsScreen() {
   const auth = useAuth()
   const fileRef = useRef(null)
   const authDialog = useDialog()
+  const signOutDialog = useDialog()
   const [changelog, setChangelog] = useState(null)
   const [failed, setFailed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [online, setOnline] = useState(navigator.onLine)
+
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -94,13 +112,17 @@ export default function SettingsScreen() {
           <span className="text-[12px] text-faint">Profile, data & preferences</span>
         </div>
 
-        <div className="flex items-center gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-white/10">
-          <Avatar initials={initialsOf(auth.user?.email ?? 'You')} size={44} />
+        <div className="flex items-center gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+          <Avatar
+            initials={initialsOf(auth.profile?.nickname || auth.user?.email || 'You')}
+            src={auth.profile?.pfp || null}
+            size={44}
+          />
           <div className="flex flex-1 flex-col">
             {auth.user ? (
               <>
                 <span className="text-[15px] font-semibold text-ink">
-                  {auth.user.email.split('@')[0]}
+                  {auth.profile?.nickname || auth.user.email.split('@')[0]}
                 </span>
                 <span className="text-[12px] text-faint">{auth.user.email}</span>
               </>
@@ -113,7 +135,7 @@ export default function SettingsScreen() {
           </div>
           {auth.user ? (
             <button
-              onClick={() => auth.signOut()}
+              onClick={signOutDialog.openDialog}
               className="flex h-9 items-center rounded-full bg-accent/15 px-3 text-[12px] font-semibold text-accent"
             >
               Sign out
@@ -137,18 +159,46 @@ export default function SettingsScreen() {
             onClick={authDialog.openDialog}
           />
           <Row
+            icon={
+              !isSupabaseEnabled ? (
+                <CloudOff size={15} color="var(--color-muted)" />
+              ) : auth.status === 'loading' ? (
+                <Cloud size={15} color="var(--color-muted)" />
+              ) : auth.user && online ? (
+                <CloudCheck size={15} color="#17C964" />
+              ) : (
+                <CloudOff size={15} color="#F5A524" />
+              )
+            }
+            iconBg="bg-tile"
+            title="Cloud sync"
+            subtitle={
+              !isSupabaseEnabled
+                ? 'Supabase not configured'
+                : auth.status === 'loading'
+                  ? 'Checking connection…'
+                  : auth.user && online
+                    ? 'Synced with cloud'
+                    : auth.user
+                      ? 'Waiting to sync'
+                      : 'Sign in to sync your data'
+            }
+            onClick={!auth.user ? authDialog.openDialog : undefined}
+            right={!auth.user ? <ChevronRight size={14} color="var(--color-muted)" /> : false}
+          />
+          <Row
             icon={<Database size={15} color="var(--color-accent)" />}
             title="Back up my data"
             subtitle="Export everything as a JSON file"
             onClick={exportData}
-            right={<Download size={14} color="#6E6E7A" />}
+            right={<Download size={14} color="var(--color-muted)" />}
           />
           <Row
             icon={<Upload size={15} color="var(--color-accent)" />}
             title="Restore a backup"
             subtitle="Load data from a previous export"
             onClick={() => fileRef.current?.click()}
-            right={<Upload size={14} color="#6E6E7A" />}
+            right={<Upload size={14} color="var(--color-muted)" />}
           />
           <input
             ref={fileRef}
@@ -165,7 +215,38 @@ export default function SettingsScreen() {
 
         <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4">
           <span className="text-[11px] font-semibold tracking-[1.4px] text-muted">APPEARANCE</span>
-          <span className="text-[14px] font-semibold text-ink">Color themes</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[14px] font-semibold text-ink">Theme</span>
+            <span className="text-[12px] text-muted">{themeById(store.settings.theme).name}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {THEME_PRESETS.map((t) => {
+              const active = store.settings.theme === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => store.setSettings({ theme: t.id })}
+                  aria-pressed={active}
+                  className={`flex h-[72px] flex-col justify-between rounded-[14px] p-2.5 outline outline-1 transition-transform active:scale-[0.97] ${
+                    active ? 'outline-2 outline-accent' : 'outline-line/10'
+                  }`}
+                  style={{ background: `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.bg2} 85.355%)` }}
+                >
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: t.colors.surface, outline: `1px solid ${t.colors.line}26` }}
+                  />
+                  <span className="text-left text-[11px] font-medium" style={{ color: t.colors.ink }}>
+                    {t.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-[14px] font-semibold text-ink">Accent color</span>
+            <span className="text-[12px] text-muted">{store.settings.accent}</span>
+          </div>
           <div className="flex items-center gap-3.5">
             {THEMES.map((t) => {
               const active = store.settings.accent === t
@@ -194,12 +275,6 @@ export default function SettingsScreen() {
             subtitle="A little cat keeps you company"
             right={<Toggle on={store.settings.neko} onChange={(v) => store.setSettings({ neko: v })} />}
           />
-          <Row
-            icon={<Check size={15} color="var(--color-accent)" />}
-            title="Notifications"
-            subtitle="Reminders for workouts and rest"
-            right={<Toggle on={store.settings.notify} onChange={(v) => store.setSettings({ notify: v })} />}
-          />
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -224,7 +299,7 @@ export default function SettingsScreen() {
 
       {sheetOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
           onClick={() => setSheetOpen(false)}
         >
           <div
@@ -240,7 +315,7 @@ export default function SettingsScreen() {
                 onClick={() => setSheetOpen(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
               >
-                <X size={15} color="#A1A1AA" />
+                <X size={15} color="var(--color-sub)" />
               </button>
             </div>
             <div className="flex flex-col gap-4 overflow-y-auto">
@@ -292,6 +367,34 @@ export default function SettingsScreen() {
       )}
 
       <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
+
+      <Modal open={signOutDialog.open} onClose={signOutDialog.closeDialog}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[16px] font-semibold text-soft">Sign out?</span>
+            <span className="text-[12px] text-muted">
+              Your workouts stay on this device, but you'll stop syncing until you sign back in.
+            </span>
+          </div>
+          <div className="flex gap-2.5">
+            <button
+              onClick={signOutDialog.closeDialog}
+              className="h-11 flex-1 rounded-[14px] bg-tile text-[14px] font-semibold text-ink"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                signOutDialog.closeDialog()
+                auth.signOut()
+              }}
+              className="h-11 flex-1 rounded-[14px] bg-[#DB3B3E] text-[14px] font-semibold text-white"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Screen>
   )
 }
