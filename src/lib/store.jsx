@@ -9,7 +9,8 @@ const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#0485F7' },
+  settings: { notify: true, neko: true, accent: '#0485F7', theme: 'dark' },
+  lastActiveExercise: null,
 }
 
 function load() {
@@ -22,6 +23,7 @@ function load() {
       sessions: parsed.sessions ?? DEFAULT.sessions,
       plan: parsed.plan ?? {},
       settings: { ...DEFAULT.settings, ...parsed.settings },
+      lastActiveExercise: parsed.lastActiveExercise ?? DEFAULT.lastActiveExercise,
     }
   } catch {
     return DEFAULT
@@ -123,6 +125,7 @@ export function StoreProvider({ children }) {
       sessions: state.sessions,
       plan: state.plan,
       settings: state.settings,
+      lastActiveExercise: state.lastActiveExercise,
 
       addDay(name, weekday) {
         const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
@@ -199,9 +202,13 @@ export function StoreProvider({ children }) {
       toggleExercise(dayId, exId) {
         let fresh = []
         setState((s) => {
-          const prevDay = s.days.find((d) => d.id === dayId)
-          const prevAll =
-            !!prevDay && prevDay.exercises.length > 0 && prevDay.exercises.every((e) => e.done)
+          const day = s.days.find((d) => d.id === dayId)
+          if (!day) return s
+          const ex = day.exercises.find((e) => e.id === exId)
+          if (!ex) return s
+
+          const willBeDone = !ex.done
+
           const days = s.days.map((d) =>
             d.id === dayId
               ? {
@@ -212,40 +219,39 @@ export function StoreProvider({ children }) {
                 }
               : d,
           )
-          const nextDay = days.find((d) => d.id === dayId)
-          const nextAll =
-            !!nextDay && nextDay.exercises.length > 0 && nextDay.exercises.every((e) => e.done)
+
+          const now = new Date()
+          const dateStr = now.toLocaleDateString('en-US', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+          })
+          const full = now.toISOString().slice(0, 10)
+
           let sessions = s.sessions
-          if (!prevAll && nextAll) {
-            const now = new Date()
-            const dateStr = now.toLocaleDateString('en-US', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-            })
-            const full = now.toISOString().slice(0, 10)
-            const logged = new Set(
-              sessions.filter((x) => x.full === full).map((x) => x.exercise),
+          if (willBeDone) {
+            const prevBest = Math.max(
+              0,
+              ...sessions
+                .filter((x) => x.exercise === ex.name && x.full !== full)
+                .map((x) => x.weight ?? 0),
             )
-            fresh = []
-            for (const e of nextDay.exercises) {
-              if (!e.done || logged.has(e.name)) continue
-              const prevBest = Math.max(
-                0,
-                ...sessions.filter((x) => x.exercise === e.name).map((x) => x.weight ?? 0),
-              )
-              fresh.push({
-                date: dateStr,
-                full,
-                exercise: e.name,
-                sets: e.sets,
-                reps: e.reps,
-                weight: e.weight,
-                pr: e.weight >= prevBest && e.weight > 0,
-              })
+            const newSession = {
+              date: dateStr,
+              full,
+              exercise: ex.name,
+              sets: ex.sets,
+              reps: ex.reps,
+              weight: ex.weight,
+              pr: ex.weight >= prevBest && ex.weight > 0,
             }
-            if (fresh.length) sessions = [...fresh, ...sessions].slice(0, 60)
+            sessions = sessions
+              .filter((x) => !(x.exercise === ex.name && x.full === full))
+              .slice(0, 59)
+            fresh = [newSession]
+            sessions = [newSession, ...sessions].slice(0, 60)
           }
+
           return { ...s, days, sessions }
         })
         if (fresh.length) fresh.forEach((f) => recordLift(f.exercise, f.weight))
@@ -266,18 +272,25 @@ export function StoreProvider({ children }) {
         const now = new Date()
         const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
         const full = now.toISOString().slice(0, 10)
-        setState((s) => ({
-          ...s,
-          sessions: [
-            { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr },
-            ...s.sessions,
-          ].slice(0, 60),
-        }))
+        setState((s) => {
+          const newSession = { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr }
+          const sessions = s.sessions
+            .filter((x) => !(x.exercise === exerciseName && x.full === full))
+            .slice(0, 59)
+          return {
+            ...s,
+            sessions: [newSession, ...sessions].slice(0, 60),
+          }
+        })
         recordLift(exerciseName, weight)
       },
 
       setSettings(patch) {
         setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }))
+      },
+
+      setLastActiveExercise(name) {
+        setState((s) => ({ ...s, lastActiveExercise: name }))
       },
 
       setPlan(dateKey, dayId) {
