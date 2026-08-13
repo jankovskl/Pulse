@@ -1,8 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadRemote, pushState, loginLift, mergeState, hasWorkoutData, shouldPushState } from './sync.js'
+import {
+  loadRemote,
+  pushState,
+  loginLift,
+  mergeState,
+  hasWorkoutData,
+  shouldPushState,
+  loadRemoteResilient,
+} from './sync.js'
 
-function makeClient({ queryResult, onUpsert } = {}) {
+function makeClient({ queryResult, onUpsert, onCall } = {}) {
+  let calls = 0
   return {
     from(table) {
       return {
@@ -11,7 +20,9 @@ function makeClient({ queryResult, onUpsert } = {}) {
             eq() {
               return {
                 order() {
-                  return { limit: async () => queryResult }
+                  return {
+                    limit: async () => (onCall ? onCall() : queryResult),
+                  }
                 },
               }
             },
@@ -77,6 +88,27 @@ test('loadRemote returns the newest row when duplicates exist', async () => {
 test('loadRemote throws on query error', async () => {
   const client = makeClient({ queryResult: { data: null, error: new Error('boom') } })
   await assert.rejects(() => loadRemote(client, 'u1'))
+})
+
+test('loadRemoteResilient retries once when the first call returns null', async () => {
+  const row = { data: { days: [{ id: 'x' }] }, updated_at: '2026-01-01T00:00:00Z' }
+  let calls = 0
+  const client = makeClient({
+    onCall: () => {
+      calls++
+      return calls === 1
+        ? { data: [], error: null }
+        : { data: [{ data: row.data, updated_at: row.updated_at }], error: null }
+    },
+  })
+  const out = await loadRemoteResilient(client, 'u1', { delayMs: 0 })
+  assert.deepEqual(out.data, row.data)
+  assert.equal(calls, 2)
+})
+
+test('loadRemoteResilient resolves null when the row never appears', async () => {
+  const client = makeClient({ queryResult: { data: [], error: null } })
+  assert.equal(await loadRemoteResilient(client, 'u1', { delayMs: 0 }), null)
 })
 
 test('hasWorkoutData is false for an empty state', () => {

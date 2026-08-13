@@ -48,6 +48,20 @@ export function mergeState(localState, remote, localUpdatedAt) {
   return remote.updatedAt >= localTs ? remote.data : localState
 }
 
+// Like loadRemote, but retries once after `delayMs` when the first attempt
+// returns null. supabase-js can notify SIGNED_IN a hair before the new session
+// is fully queryable, so auth.uid() is briefly null and RLS hides the user's
+// own row; the retry recovers from that. It only ever reads, so it can't
+// destroy data.
+export async function loadRemoteResilient(supabase, userId, { delayMs = 300 } = {}) {
+  let remote = await loadRemote(supabase, userId)
+  if (!remote) {
+    await new Promise((r) => setTimeout(r, delayMs))
+    remote = await loadRemote(supabase, userId)
+  }
+  return remote
+}
+
 // True when the state holds actual workout data (days, sessions or a plan).
 // An empty state — e.g. right after "delete all data" while signed out — must
 // never be pushed over a real cloud copy, or the cloud data is lost.

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { getUserId, subscribeUser } from './auth'
-import { loadRemote, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
+import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
 
 const KEY = 'pulse.state.v2'
 
@@ -91,16 +91,15 @@ export function StoreProvider({ children }) {
       return
     }
     try {
-      const remote = await loadRemote(supabase, userId)
+      const remote = await loadRemoteResilient(supabase, userId)
       if (remote) {
         // Cloud is the source of truth on login: replace local state.
         setState(normalize(remote.data))
         lastSynced.current = Date.now()
-      } else {
+      } else if (hasWorkoutData(stateRef.current)) {
         // No cloud copy yet (first device): seed it with local state.
-        // Never seed an empty state (e.g. right after "delete all data"
-        // while signed out) — that would wipe a real cloud copy.
-        if (!hasWorkoutData(stateRef.current)) return
+        // Never seed an empty state (e.g. after "delete all data" while
+        // signed out) — that would wipe a real cloud copy.
         lastSynced.current = Date.now()
         await pushState(supabase, userId, stateRef.current)
       }
