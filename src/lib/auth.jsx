@@ -110,7 +110,17 @@ export function AuthProvider({ children }) {
     if (!supabase) return
     setError(null)
     setProfile(null)
-    await supabase.auth.signOut()
+    // Optimistically mark the user as signed out *now*. This matters because
+    // `supabase.auth.signOut()` is async and only flips `auth.user` to null once
+    // its network round-trip resolves — a window during which the UI still
+    // thinks the user is signed in. If the user clicked "Sign out" then
+    // immediately "Delete all data", that delete would otherwise run through
+    // the *signed-in* path (password re-auth + cloud wipe) while the user
+    // believes they are signed out. Setting null immediately makes the
+    // signed-out "delete all data" path (local-only, cloud-safe) the one taken.
+    setUser(null)
+    applySession(null)
+    supabase.auth.signOut().catch(() => {})
   }, [])
 
   const updateProfile = useCallback(
