@@ -134,12 +134,40 @@
   --color-ring: #f1d9e2;
 }
 
-[data-theme='glass'] .screen-bg,
-[data-theme='glass'] .bg-surface,
-[data-theme='glass'] .bg-card,
-[data-theme='glass'] .bg-tile,
-[data-theme='glass'] .bg-field,
-[data-theme='glass'] .bg-dock {
+[data-theme^='g-'] {
+  --bg-gradient: linear-gradient(-157deg, var(--color-bg) 14.645%, var(--color-bg-mid, var(--color-bg)) 50%, var(--color-bg2) 85.355%);
+  --color-surface: rgba(0, 0, 0, 0.32);
+  --color-card: rgba(0, 0, 0, 0.28);
+  --color-tile: rgba(255, 255, 255, 0.10);
+  --color-field: rgba(0, 0, 0, 0.38);
+  --color-dock: rgba(10, 10, 20, 0.55);
+  --color-ink: #f4f4f6;
+  --color-soft: #ffffff;
+  --color-sub: #c6c4d4;
+  --color-muted: #8f8da0;
+  --color-faint: #a6a4b8;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-ring: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='g-sweet-morning'] { --color-bg: #ff5f6d; --color-bg2: #ffc371; }
+[data-theme='g-pure-lust'] { --color-bg: #333333; --color-bg2: #dd1818; }
+[data-theme='g-royal-blue'] { --color-bg: #536976; --color-bg2: #292e49; }
+[data-theme='g-purple-love'] { --color-bg: #cc2b5e; --color-bg2: #753a88; }
+[data-theme='g-sublime-vivid'] { --color-bg: #fc466b; --color-bg2: #3f5efb; }
+[data-theme='g-vice-city'] { --color-bg: #3494e6; --color-bg2: #ec6ead; }
+[data-theme='g-love-couple'] { --color-bg: #3a6186; --color-bg2: #89253e; }
+[data-theme='g-king-yna'] { --color-bg: #1a2a6c; --color-bg-mid: #b21f1f; --color-bg2: #fdbb2d; }
+[data-theme='g-pacific-dream'] { --color-bg: #34e89e; --color-bg2: #0f3443; }
+[data-theme='g-dawn'] { --color-bg: #f3904f; --color-bg2: #3b4371; }
+
+:is([data-theme='glass'], [data-theme^='g-']) .screen-bg,
+:is([data-theme='glass'], [data-theme^='g-']) .bg-surface,
+:is([data-theme='glass'], [data-theme^='g-']) .bg-card,
+:is([data-theme='glass'], [data-theme^='g-']) .bg-tile,
+:is([data-theme='glass'], [data-theme^='g-']) .bg-field,
+:is([data-theme='glass'], [data-theme^='g-']) .bg-dock {
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
@@ -176,6 +204,10 @@ body {
   background-color: var(--color-bg);
   font-family: var(--font-sans);
   transition: background-color 200ms ease;
+}
+
+.screen-bg {
+  background: var(--bg-gradient, linear-gradient(-157deg, var(--color-bg) 14.645%, var(--color-bg2) 85.355%));
 }
 
 .screen-bg,

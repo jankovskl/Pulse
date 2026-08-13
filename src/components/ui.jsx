@@ -80,7 +80,7 @@ export function Screen({ children, activeTab }) {
   const timer = useTimer()
   const nav = useNav()
   return (
-    <div className="screen-bg relative mx-auto flex min-h-dvh w-full max-w-[420px] flex-col bg-[linear-gradient(-157deg,var(--color-bg)_14.645%,var(--color-bg2)_85.355%)]">
+    <div className="screen-bg relative mx-auto flex min-h-dvh w-full max-w-[420px] flex-col">
       <div className="flex-1 px-5 pb-2 pt-3">{children}</div>
       <div className="sticky bottom-0">
         <TabDock active={activeTab} />
