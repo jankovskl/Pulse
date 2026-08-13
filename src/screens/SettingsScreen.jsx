@@ -19,13 +19,14 @@ import {
 } from 'lucide-react'
 import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
 import { fetchChangelog } from '../lib/changelog'
+import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
 import { isSupabaseEnabled, supabase } from '../lib/supabase'
 import { THEMES as THEME_PRESETS, themeById } from '../lib/themes'
 import AuthModal from '../components/AuthModal'
 import { Avatar, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
 
-const THEMES = ['#F5A524', '#17C964', '#EC4899', '#FF383C', '#0485F7']
+const THEMES = ['#F5A524', '#17C964', '#EC4899', '#A855F7', '#FF383C', '#0485F7']
 
 function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15' }) {
   return (
@@ -143,11 +144,24 @@ export default function SettingsScreen() {
     if (deleteBusy) return
     setDeleteBusy(true)
     setDeleteError(null)
-    if (auth.user) suppressNextPull()
+    // Use getUserId() (module-level, updated synchronously on sign-out) instead
+    // of `auth.user` (React context, stale until re-render). After a sign-out
+    // the React context value lags ~1 frame, so reading `auth.user` during that
+    // window would take the wrong (signed-in, cloud-wiping) code path.
+    const userId = getUserId()
+    if (userId) suppressNextPull()
     try {
-      if (auth.user) {
+      if (userId) {
+        // Re-fetch the session user to get a guaranteed-fresh email for the
+        // password re-auth prompt (the React context value may be stale).
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          resetPullSuppression()
+          setDeleteBusy(false)
+          return
+        }
         const { error } = await supabase.auth.signInWithPassword({
-          email: auth.user.email,
+          email: user.email,
           password: deletePw,
         })
         if (error) {
@@ -157,10 +171,10 @@ export default function SettingsScreen() {
           return
         }
       }
-      // The user is signed in: the delete is password-confirmed, so wiping
-      // the cloud copy is intended. Flag it so the debounced push is allowed
-      // to send the empty state.
-      if (auth.user) requestCloudWipe()
+      // The user is genuinely signed in: the delete is password-confirmed, so
+      // wiping the cloud copy is intended. Flag it so the debounced push is
+      // allowed to send the empty state.
+      if (userId) requestCloudWipe()
       store.clearAllData()
       deleteDialog.closeDialog()
       setDeletePw('')

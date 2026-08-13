@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
-import { getUserId, subscribeUser } from './auth'
+import { getUserId, subscribeUser, registerBeforeSignOut } from './auth'
 import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
 
 const KEY = 'pulse.state.v2'
@@ -28,7 +28,7 @@ const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#0485F7', theme: 'dark' },
+  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark' },
   lastActiveExercise: null,
 }
 
@@ -110,10 +110,39 @@ export function StoreProvider({ children }) {
     stateRef.current = state
   }, [state])
 
+  // Register a flush that runs BEFORE the session is torn down on sign-out.
+  // This pushes any pending local changes (saved within the last debounce
+  // window) to the cloud so they are not lost when `currentUser` becomes null
+  // and the session cookie is revoked.
+  useEffect(() => {
+    registerBeforeSignOut(async () => {
+      const userId = getUserId()
+      if (!supabase || !userId) return
+      // Abort a pending cloud wipe — signing out before the wipe push fired
+      // means the user abandoned the wipe, so preserve the cloud copy.
+      if (wipeCloud) {
+        wipeCloud = false
+        return
+      }
+      // Flush pending workout data so it is not lost on sign-out.
+      if (!hasWorkoutData(stateRef.current)) return
+      try {
+        await pushState(supabase, userId, stateRef.current)
+        lastSynced.current = Date.now()
+      } catch {}
+    })
+  }, [])
+
   // Pull-then-push when the user signs in or out.
   useEffect(() => {
-    return subscribeUser((userId) => {
-      if (userId) syncOnLogin(userId)
+    return subscribeUser((user) => {
+      const userId = user?.id ?? null
+      if (userId) {
+        syncOnLogin(userId)
+      } else {
+        // Reset wipe flag on sign-out to prevent leakage across sessions.
+        wipeCloud = false
+      }
     })
   }, [])
 

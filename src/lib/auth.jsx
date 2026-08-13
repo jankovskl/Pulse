@@ -7,6 +7,12 @@ import { fetchProfile, saveProfile } from './profile'
 let currentUser = null
 const listeners = new Set()
 
+// Optional hook invoked just before the session is torn down. The store
+// registers a flush here so any pending cloud writes complete before the
+// user's session is cleared — otherwise a save that happened less than
+// the push-debounce ago is silently lost on sign-out.
+let beforeSignOutCB = null
+
 function emit() {
   for (const cb of listeners) cb(currentUser)
 }
@@ -21,6 +27,10 @@ export function subscribeUser(cb) {
   listeners.add(cb)
   cb(currentUser)
   return () => listeners.delete(cb)
+}
+
+export function registerBeforeSignOut(cb) {
+  beforeSignOutCB = cb
 }
 
 function applySession(sessionUser) {
@@ -110,6 +120,10 @@ export function AuthProvider({ children }) {
     if (!supabase) return
     setError(null)
     setProfile(null)
+    // Flush any pending cloud writes *before* clearing the session. The store
+    // registers a flush callback via registerBeforeSignOut; it will push the
+    // latest local state so nothing saved within the debounce window is lost.
+    if (beforeSignOutCB) await beforeSignOutCB()
     // Optimistically mark the user as signed out *now*. This matters because
     // `supabase.auth.signOut()` is async and only flips `auth.user` to null once
     // its network round-trip resolves — a window during which the UI still

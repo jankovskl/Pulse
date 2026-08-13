@@ -13,8 +13,8 @@
   --color-sub: #a1a1aa;
   --color-muted: #6e6e7a;
   --color-faint: #9c9ca8;
-  --color-accent: #0485f7;
-  --color-accent-light: #6bb6ff;
+  --color-accent: #a855f7;
+  --color-accent-light: #c084fc;
   --color-good: #17c964;
   --color-gold: #f5a524;
   --color-silver: #c9c9d6;
@@ -182,7 +182,7 @@
     color-mix(in srgb, var(--color-accent) 18%, transparent),
     #7c3aed2b,
     color-mix(in srgb, var(--color-accent) 10%, transparent),
-    #0485f71f
+    #a855f71f
   );
   background-size: 300% 300%;
   animation: pulse-wallpaper 16s ease-in-out infinite;

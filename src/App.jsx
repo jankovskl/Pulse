@@ -39,6 +39,7 @@ const ACCENT_LIGHT = {
   '#17C964': '#6BE89F',
   '#EC4899': '#F58ABF',
   '#FF383C': '#FF7A7D',
+  '#A855F7': '#C084FC',
 }
 
 function ThemeSync() {
