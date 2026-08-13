@@ -171,7 +171,12 @@ export default function ProgressScreen() {
 
   return (
     <Screen activeTab="progress">
-      <div className="flex flex-col gap-5">
+      <div className="relative">
+        <div
+          className={`flex flex-col gap-5 ${
+            !auth.user ? 'pointer-events-none select-none blur-[10px]' : ''
+          }`}
+        >
         <div className="flex flex-col gap-1">
           <h1 className="text-[26px] font-bold text-ink">Progress</h1>
           <span className="text-[12px] text-faint">{current} · last {exSessions.length} {exSessions.length === 1 ? 'session' : 'sessions'}</span>
@@ -331,8 +336,6 @@ export default function ProgressScreen() {
           </button>
         </div>
 
-        <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
-
         <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-semibold text-ink">Recent Sessions</span>
@@ -367,7 +370,28 @@ export default function ProgressScreen() {
             </div>
           ))}
         </div>
+        </div>
+
+        {!auth.user && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-6 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
+              <Lock size={20} color="var(--color-accent)" />
+            </div>
+            <span className="text-[14px] font-semibold text-ink">Log in to see your progress</span>
+            <span className="text-[12px] text-faint">
+              Your plan, lifts and stats are stored in your account
+            </span>
+            <button
+              onClick={authDialog.openDialog}
+              className="mt-1 h-11 rounded-[14px] bg-accent px-6 text-[14px] font-semibold text-white"
+            >
+              Log in
+            </button>
+          </div>
+        )}
       </div>
+
+      <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>
   )
 }

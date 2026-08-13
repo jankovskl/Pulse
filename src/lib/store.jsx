@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { getUserId, subscribeUser } from './auth'
-import { loadRemote, pushState, loginLift, mergeState } from './sync'
+import { loadRemote, pushState, loginLift } from './sync'
 
 const KEY = 'pulse.state.v2'
 
@@ -13,18 +13,21 @@ const DEFAULT = {
   lastActiveExercise: null,
 }
 
+function normalize(raw) {
+  return {
+    days: raw.days ?? DEFAULT.days,
+    sessions: raw.sessions ?? DEFAULT.sessions,
+    plan: raw.plan ?? {},
+    settings: { ...DEFAULT.settings, ...(raw.settings ?? {}) },
+    lastActiveExercise: raw.lastActiveExercise ?? DEFAULT.lastActiveExercise,
+  }
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT
-    const parsed = JSON.parse(raw)
-    return {
-      days: parsed.days ?? DEFAULT.days,
-      sessions: parsed.sessions ?? DEFAULT.sessions,
-      plan: parsed.plan ?? {},
-      settings: { ...DEFAULT.settings, ...parsed.settings },
-      lastActiveExercise: parsed.lastActiveExercise ?? DEFAULT.lastActiveExercise,
-    }
+    return normalize(JSON.parse(raw))
   } catch {
     return DEFAULT
   }
@@ -66,10 +69,15 @@ export function StoreProvider({ children }) {
     if (!supabase || !userId) return
     try {
       const remote = await loadRemote(supabase, userId)
-      const merged = mergeState(stateRef.current, remote, lastSynced.current)
-      if (merged && merged !== stateRef.current) setState(merged)
-      lastSynced.current = Date.now()
-      await pushState(supabase, userId, merged ?? stateRef.current)
+      if (remote) {
+        // Cloud is the source of truth on login: replace local state.
+        setState(normalize(remote.data))
+        lastSynced.current = Date.now()
+      } else {
+        // No cloud copy yet (first device): seed it with local state.
+        lastSynced.current = Date.now()
+        await pushState(supabase, userId, stateRef.current)
+      }
     } catch {}
   }
 
