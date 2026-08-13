@@ -1,15 +1,15 @@
 import { useEffect } from 'react'
-import { ArrowRight, Bell, CircleCheck, MoonStar, Pause, Play, RotateCcw } from 'lucide-react'
+import { ArrowRight, CircleCheck, MoonStar, Pause, Play, RotateCcw } from 'lucide-react'
 import { dateKey, REST_PRESETS } from '../lib/data'
 import { fmt, useTimer } from '../lib/timer'
 import { useStore } from '../lib/store'
-import { Screen, SectionLabel, Toggle, useNav } from '../components/ui'
+import { Screen, SectionLabel, useNav } from '../components/ui'
 
 export default function TimerScreen() {
   const timer = useTimer()
   const store = useStore()
   const nav = useNav()
-  const { total, left, running, paused, notify, session, start, toggle, reset, setNotify, setDay } = timer
+  const { total, left, running, paused, session, start, toggle, reset, setDay } = timer
 
   useEffect(() => {
     if (nav.dayId && session?.dayId !== nav.dayId) setDay(nav.dayId)
@@ -50,7 +50,7 @@ export default function TimerScreen() {
         {day ? (
           <button
             onClick={() => nav.go('day', { dayId: day.id })}
-            className="flex w-full items-center gap-3 rounded-[20px] bg-[#0F0F16] px-3.5 py-3 text-left outline outline-1 outline-white/10 shadow-[0px_8px_20px_0px_#00000059]"
+            className="flex w-full items-center gap-3 rounded-[20px] bg-field px-3.5 py-3 text-left outline outline-1 outline-line/10 shadow-[0px_8px_20px_0px_#00000059]"
           >
             <span className="h-10 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-accent to-accent-light" />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -61,37 +61,37 @@ export default function TimerScreen() {
                   {day.exercises.map((e) => (
                     <span
                       key={e.id}
-                      className={`h-[6px] w-[6px] rounded-full ${e.done ? 'bg-good' : 'bg-white/10'}`}
+                      className={`h-[6px] w-[6px] rounded-full ${e.done ? 'bg-good' : 'bg-line/10'}`}
                     />
                   ))}
                 </span>
               </span>
-              <span className="text-[11px] font-medium text-silver">
+              <span className="text-[11px] font-medium text-sub">
                 {day.exercises.filter((e) => e.done).length} of {day.exercises.length} done
               </span>
             </span>
             <span className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4">
-              <ArrowRight size={14} color="#0B0B12" strokeWidth={2.5} />
-              <span className="text-[14px] font-medium text-[#0B0B12]">
+              <ArrowRight size={14} color="#FFFFFF" strokeWidth={2.5} />
+              <span className="text-[14px] font-medium text-white">
                 {sessionDay ? 'Continue' : 'Start'}
               </span>
             </span>
           </button>
         ) : (
-          <div className="flex w-full items-center gap-3 rounded-[20px] bg-[#0F0F16] px-3.5 py-3 outline outline-1 outline-white/10 shadow-[0px_8px_20px_0px_#00000059]">
+          <div className="flex w-full items-center gap-3 rounded-[20px] bg-field px-3.5 py-3 outline outline-1 outline-line/10 shadow-[0px_8px_20px_0px_#00000059]">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-tile">
-              <MoonStar size={18} color="#A1A1AA" />
+              <MoonStar size={18} color="var(--color-sub)" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-[10px] font-semibold tracking-[1px] text-muted">TODAY</span>
               <span className="text-[17px] font-bold text-ink">Rest day</span>
-              <span className="text-[11px] font-medium text-silver">
+              <span className="text-[11px] font-medium text-sub">
                 No workout scheduled — recovery is training too
               </span>
             </span>
             <span className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-tile px-4">
-              <MoonStar size={14} color="#A1A1AA" />
-              <span className="text-[14px] font-medium text-silver">Rest</span>
+              <MoonStar size={14} color="var(--color-sub)" />
+              <span className="text-[14px] font-medium text-sub">Rest</span>
             </span>
           </div>
         )}
@@ -109,7 +109,7 @@ export default function TimerScreen() {
               </linearGradient>
             </defs>
             <circle cx="140" cy="140" r="140" fill="url(#ringHalo)" />
-            <circle cx="140" cy="140" r={R} fill="none" stroke="#1B1B26" strokeWidth={SW} />
+            <circle cx="140" cy="140" r={R} fill="none" stroke="var(--color-ring)" strokeWidth={SW} />
             <circle
               cx="140"
               cy="140"
@@ -161,11 +161,11 @@ export default function TimerScreen() {
                 className={`flex h-9 items-center justify-center rounded-full px-3.5 outline outline-1 ${
                   total === p.sec && running
                     ? 'bg-accent outline-transparent'
-                    : 'bg-[#1F1F2A] outline-white/[0.08]'
+                    : 'bg-tile outline-line/[0.08]'
                 }`}
               >
                 <span
-                  className={`text-[13px] font-semibold ${total === p.sec && running ? 'text-[#0B0B12]' : 'text-silver'}`}
+                  className={`text-[13px] font-semibold ${total === p.sec && running ? 'text-white' : 'text-sub'}`}
                 >
                   {p.label}
                 </span>
@@ -180,7 +180,7 @@ export default function TimerScreen() {
             onClick={reset}
             className="flex h-11 items-center gap-2 rounded-full px-6 text-[14px] font-medium text-faint"
           >
-            <RotateCcw size={16} color="#9C9CA8" />
+            <RotateCcw size={16} color="var(--color-faint)" />
             Reset
           </button>
         </div>
@@ -189,28 +189,14 @@ export default function TimerScreen() {
           className="flex h-[54px] w-full items-center justify-center gap-2 rounded-full bg-accent"
         >
           {running && !paused ? (
-            <Pause size={18} color="#0B0B12" fill="#0B0B12" />
+            <Pause size={18} color="#FFFFFF" fill="#FFFFFF" />
           ) : (
-            <Play size={18} color="#0B0B12" fill="#0B0B12" />
+            <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
           )}
-          <span className="text-[16px] font-medium text-[#0B0B12]">
+          <span className="text-[16px] font-medium text-white">
             {running ? (paused ? 'Resume rest' : 'Pause') : left === 0 ? 'Restart' : 'Start rest'}
           </span>
         </button>
-
-        <div className="flex w-full flex-col gap-3">
-          <div className="h-px w-full bg-white/[0.05]" />
-          <div className="flex w-full items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#1F1F2A]">
-              <Bell size={16} color="var(--color-accent)" />
-            </div>
-            <span className="flex-1 text-[14px] font-medium text-ink">Notify me when done</span>
-            <Toggle on={notify} onChange={setNotify} />
-          </div>
-          <p className="w-full text-center text-[11px] leading-[1.4] text-muted">
-            Desktop notification when the rest ends · countdown also mirrored in the window title
-          </p>
-        </div>
       </div>
     </Screen>
   )
