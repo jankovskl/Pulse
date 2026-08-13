@@ -17,7 +17,7 @@ import {
   User,
   X,
 } from 'lucide-react'
-import { useStore, suppressNextPull, resetPullSuppression } from '../lib/store'
+import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
 import { fetchChangelog } from '../lib/changelog'
 import { useAuth } from '../lib/auth'
 import { isSupabaseEnabled, supabase } from '../lib/supabase'
@@ -157,6 +157,10 @@ export default function SettingsScreen() {
           return
         }
       }
+      // The user is signed in: the delete is password-confirmed, so wiping
+      // the cloud copy is intended. Flag it so the debounced push is allowed
+      // to send the empty state.
+      if (auth.user) requestCloudWipe()
       store.clearAllData()
       deleteDialog.closeDialog()
       setDeletePw('')

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { getUserId, subscribeUser } from './auth'
-import { loadRemote, pushState, loginLift, clearLifts, hasWorkoutData } from './sync'
+import { loadRemote, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
 
 const KEY = 'pulse.state.v2'
 
@@ -13,6 +13,15 @@ export function suppressNextPull() {
 }
 export function resetPullSuppression() {
   suppressPull = false
+}
+
+// Set by the signed-in "delete all data" flow so the debounced push knows an
+// empty state is an intentional cloud wipe, not an accidental one. Without
+// this flag an empty state is never pushed, so deleting data while signed out
+// (or with a silently restored session) can never destroy the cloud copy.
+let wipeCloud = false
+export function requestCloudWipe() {
+  wipeCloud = true
 }
 
 const DEFAULT = {
@@ -110,12 +119,17 @@ export function StoreProvider({ children }) {
   }, [])
 
   // Debounced push of every local change to the cloud while signed in.
+  // Empty states are only pushed when a cloud wipe was explicitly requested;
+  // otherwise an empty state (signed-out delete, cleared device) is left
+  // alone so the real cloud copy survives.
   useEffect(() => {
     const userId = getUserId()
     if (!supabase || !userId) return
     let cancelled = false
     const t = setTimeout(() => {
       if (cancelled) return
+      if (!shouldPushState(state, wipeCloud)) return
+      wipeCloud = false
       pushState(supabase, userId, state)
         .then(() => {
           lastSynced.current = Date.now()

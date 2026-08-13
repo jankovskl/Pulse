@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadRemote, pushState, loginLift, mergeState, hasWorkoutData } from './sync.js'
+import { loadRemote, pushState, loginLift, mergeState, hasWorkoutData, shouldPushState } from './sync.js'
 
 function makeClient({ queryResult, onUpsert } = {}) {
   return {
@@ -9,7 +9,11 @@ function makeClient({ queryResult, onUpsert } = {}) {
         select() {
           return {
             eq() {
-              return { maybeSingle: async () => queryResult }
+              return {
+                order() {
+                  return { limit: async () => queryResult }
+                },
+              }
             },
           }
         },
@@ -41,16 +45,33 @@ test('mergeState returns local when local is newer', () => {
 
 test('loadRemote maps row into {data, updatedAt}', async () => {
   const client = makeClient({
-    queryResult: { data: { data: { days: [] }, updated_at: '2026-01-01T00:00:00Z' }, error: null },
+    queryResult: {
+      data: [{ data: { days: [] }, updated_at: '2026-01-01T00:00:00Z' }],
+      error: null,
+    },
   })
   const out = await loadRemote(client, 'u1')
   assert.deepEqual(out.data, { days: [] })
   assert.equal(out.updatedAt, Date.parse('2026-01-01T00:00:00Z'))
 })
 
-test('loadRemote returns null when the row is missing', async () => {
-  const client = makeClient({ queryResult: { data: null, error: null } })
+test('loadRemote returns null when no row exists', async () => {
+  const client = makeClient({ queryResult: { data: [], error: null } })
   assert.equal(await loadRemote(client, 'u1'), null)
+})
+
+test('loadRemote returns the newest row when duplicates exist', async () => {
+  const client = makeClient({
+    queryResult: {
+      data: [
+        { data: { days: [{ id: 'newer' }] }, updated_at: '2026-02-01T00:00:00Z' },
+        { data: { days: [{ id: 'older' }] }, updated_at: '2026-01-01T00:00:00Z' },
+      ],
+      error: null,
+    },
+  })
+  const out = await loadRemote(client, 'u1')
+  assert.deepEqual(out.data, { days: [{ id: 'newer' }] })
 })
 
 test('loadRemote throws on query error', async () => {
@@ -67,6 +88,13 @@ test('hasWorkoutData is true when days, sessions or plan exist', () => {
   assert.equal(hasWorkoutData({ days: [{ id: 'a' }], sessions: [], plan: {} }), true)
   assert.equal(hasWorkoutData({ days: [], sessions: [{ id: 's' }], plan: {} }), true)
   assert.equal(hasWorkoutData({ days: [], sessions: [], plan: { a: 'b' } }), true)
+})
+
+test('shouldPushState blocks empty states unless a wipe was requested', () => {
+  const empty = { days: [], sessions: [], plan: {}, settings: {} }
+  assert.equal(shouldPushState(empty, false), false)
+  assert.equal(shouldPushState(empty, true), true)
+  assert.equal(shouldPushState({ days: [{ id: 'a' }] }, false), true)
 })
 
 test('pushState upserts the whole state under user_id', async () => {

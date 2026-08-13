@@ -3,14 +3,19 @@
 // client — no network needed.
 
 export async function loadRemote(supabase, userId) {
+  // Newest row wins. Never use maybeSingle here: if the table ever holds
+  // duplicate rows for a user, maybeSingle throws and the login restore
+  // silently fails, leaving the app looking empty.
   const { data, error } = await supabase
     .from('user_data')
     .select('data, updated_at')
     .eq('user_id', userId)
-    .maybeSingle()
+    .order('updated_at', { ascending: false })
+    .limit(1)
   if (error) throw error
-  if (!data) return null
-  return { data: data.data, updatedAt: new Date(data.updated_at).getTime() }
+  const row = data?.[0]
+  if (!row) return null
+  return { data: row.data, updatedAt: new Date(row.updated_at).getTime() }
 }
 
 export async function pushState(supabase, userId, state) {
@@ -52,4 +57,13 @@ export function hasWorkoutData(state) {
     (state?.sessions?.length ?? 0) > 0 ||
     Object.keys(state?.plan ?? {}).length > 0
   )
+}
+
+// Whether a local state may be pushed to the cloud. Empty states are only
+// allowed through when the user explicitly requested a cloud wipe (the
+// signed-in password-confirmed "delete all data" flow). Every other time an
+// empty state is the result of a signed-out delete or a cleared device, and
+// pushing it would destroy the real cloud copy.
+export function shouldPushState(state, wipePending) {
+  return hasWorkoutData(state) || wipePending
 }
