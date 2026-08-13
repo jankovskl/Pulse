@@ -69,7 +69,7 @@ In `src/lib/themes.js`, after the existing `rose` entry and before the closing `
   },
 ```
 
-Then the helper functions go at the END of the file (after `themeById`):
+Place `GRADIENT_TOKENS` ABOVE the `THEMES` array (the entries call `gradientThemeColors()` at module evaluation, so the const must already exist). `gradientThemeColors` goes at the END of the file (after `themeById`) — function declarations hoist, the const does not:
 
 ```js
 const GRADIENT_TOKENS = {
