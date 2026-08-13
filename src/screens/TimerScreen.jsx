@@ -127,6 +127,7 @@ export default function TimerScreen() {
           <button
             onClick={toggle}
             className="absolute inset-0 flex flex-col items-center justify-center gap-2.5"
+            style={{ clipPath: 'circle(50% at 50% 50%)' }}
           >
             <span className="rounded-full bg-accent/15 px-3 py-1.5 text-[10px] font-bold tracking-[2px] text-accent">
               {running ? (paused ? 'PAUSED' : 'REST') : left === 0 ? 'DONE' : 'READY'}
