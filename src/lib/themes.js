@@ -135,8 +135,6 @@ export const THEMES = [
   },
 ]
 
-const TOKEN_KEYS = ['bg', 'bg2', 'surface', 'card', 'tile', 'field', 'dock', 'ink', 'soft', 'sub', 'muted', 'faint', 'line', 'overlay', 'ring']
-
 export function themeById(id) {
   return THEMES.find((t) => t.id === id) ?? THEMES[0]
 }

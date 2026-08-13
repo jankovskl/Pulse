@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { StoreProvider, useStore } from './lib/store'
 import { AuthProvider } from './lib/auth'
 import { TimerProvider } from './lib/timer'
+import { DEFAULT_THEME } from './lib/themes'
 import { NavProvider, useNav } from './components/ui'
 import HomeScreen from './screens/HomeScreen'
 import DayDetailScreen from './screens/DayDetailScreen'
@@ -40,13 +41,14 @@ const ACCENT_LIGHT = {
   '#FF383C': '#FF7A7D',
 }
 
-function AccentSync() {
+function ThemeSync() {
   const store = useStore()
   useEffect(() => {
+    document.documentElement.dataset.theme = store.settings.theme ?? DEFAULT_THEME
     const root = document.documentElement.style
     root.setProperty('--color-accent', store.settings.accent)
     root.setProperty('--color-accent-light', ACCENT_LIGHT[store.settings.accent] ?? '#6BB6FF')
-  }, [store.settings.accent])
+  }, [store.settings.accent, store.settings.theme])
   return null
 }
 
@@ -104,7 +106,7 @@ function App() {
   return (
     <AuthProvider>
       <StoreProvider>
-        <AccentSync />
+        <ThemeSync />
         <NekoCat />
         <TimerProvider>
           <NavProvider>
