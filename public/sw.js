@@ -1,4 +1,4 @@
-const VERSION = 'pulse-v1'
+const VERSION = 'pulse-v2'
 const BASE = '/Pulse/'
 
 self.addEventListener('install', () => {
