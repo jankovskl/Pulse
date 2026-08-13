@@ -204,7 +204,7 @@ Run: `npx vite build` — expect clean build (only pre-existing chunk-size warni
 
 - [ ] **Step 2: Check the diff shape**
 
-Run: `git diff --stat d214a77..HEAD` — the appearance feature adds exactly one source change on top of the gradient work: `src/screens/SettingsScreen.jsx` from the Task 1 commit plus `docs/superpowers/specs/2026-08-13-appearance-screen-design.md` and `docs/superpowers/plans/2026-08-13-appearance-screen.md`.
+Run: `git diff --stat 18f98a2..HEAD` — the appearance feature adds exactly one source change: `src/screens/SettingsScreen.jsx` from the Task 1 commit (plus the spec/plan docs, which are already committed).
 
 - [ ] **Step 3: Manual pass (human — the user runs the dev server)**
 
