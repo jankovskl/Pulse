@@ -180,14 +180,16 @@ export function TimerProvider({ children }) {
     store.setSettings({ notify: v })
   }
 
-  function setDay(dayId) {
+   function setDay(dayId) {
     const day = storeRef.current.days.find((d) => d.id === dayId)
     if (!day || !day.exercises.length) {
       setSession({ dayId, exIdx: 0, set: 1, justCompletedId: null })
       return
     }
     const first = day.exercises.findIndex((e) => !e.done)
-    setSession({ dayId, exIdx: first === -1 ? 0 : first, set: 1, justCompletedId: null })
+    const idx = first === -1 ? 0 : first
+    setSession({ dayId, exIdx: idx, set: 1, justCompletedId: null })
+    storeRef.current.setLastActiveExercise(day.exercises[idx]?.name ?? null)
   }
 
 function advanceSession() {
@@ -205,14 +207,15 @@ function advanceSession() {
     storeRef.current.toggleExercise(s.dayId, ex.id)
     justCompletedId = ex.id
   }
-  let next = s.exIdx + 1
-  while (next < day.exercises.length && day.exercises[next].done) next++
-  if (next >= day.exercises.length) {
-    setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
-    return
-  }
-  setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
-}
+   let next = s.exIdx + 1
+   while (next < day.exercises.length && day.exercises[next].done) next++
+   if (next >= day.exercises.length) {
+     setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
+     return
+   }
+   setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
+   storeRef.current.setLastActiveExercise(day.exercises[next]?.name ?? null)
+ }
 
   return (
     <TimerCtx.Provider
