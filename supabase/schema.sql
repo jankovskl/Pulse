@@ -44,3 +44,38 @@ begin
 exception
   when duplicate_object then null;
 end $$;
+
+-- 4. Profiles (public display name + avatar, shown on the leaderboard) --------
+create table if not exists public.profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  nickname text,
+  pfp text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles readable by all" on public.profiles;
+create policy "profiles readable by all" on public.profiles
+  for select using (true);
+
+drop policy if exists "profiles writable by owner" on public.profiles;
+create policy "profiles writable by owner" on public.profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- 5. Avatar storage (public read; owner may write their own file) -------------
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "avatars public read" on storage.objects;
+create policy "avatars public read" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+drop policy if exists "avatars owner write" on storage.objects;
+create policy "avatars owner write" on storage.objects
+  for all
+  using (bucket_id = 'avatars' and owner = auth.uid())
+  with check (bucket_id = 'avatars' and owner = auth.uid());

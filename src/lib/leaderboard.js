@@ -24,13 +24,16 @@ export async function fetchUserLift(supabase, userId, exercise) {
 }
 
 // Turn raw lift rows into ranked display rows. `userId` (when supplied) marks
-// the current user's row with `you: true`.
-export function buildRows(realLifts, userId) {
+// the current user's row with `you: true`. `profileMap` maps userId -> { nickname, pfp }.
+export function buildRows(realLifts, userId, profileMap = {}) {
   const rows = (realLifts ?? []).map((l) => {
     const isYou = !!userId && l.user_id === userId
+    const p = profileMap[l.user_id] || {}
+    const name = isYou ? p.nickname || 'You' : p.nickname || l.user_id.slice(0, 6)
     return {
-      name: isYou ? 'You' : l.user_id.slice(0, 6),
-      handle: isYou ? 'your best' : l.user_id.slice(0, 8),
+      name,
+      handle: isYou ? 'your best' : p.nickname ? '' : l.user_id.slice(0, 8),
+      avatar: p.pfp || null,
       color: isYou ? 'var(--color-accent)' : '#3B3B47',
       weight: Number(l.weight),
       you: isYou,
