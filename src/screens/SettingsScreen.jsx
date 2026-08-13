@@ -40,6 +40,31 @@ function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15' })
   )
 }
 
+function ThemeSwatch({ t, active, onPick }) {
+  return (
+    <button
+      onClick={onPick}
+      aria-pressed={active}
+      className={`flex h-[72px] flex-col justify-between rounded-[14px] p-2.5 outline outline-1 transition-transform active:scale-[0.97] ${
+        active ? 'outline-2 outline-accent' : 'outline-line/10'
+      }`}
+      style={{
+        background: t.colors.mid
+          ? `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.mid} 50%, ${t.colors.bg2} 85.355%)`
+          : `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.bg2} 85.355%)`,
+      }}
+    >
+      <span
+        className="h-3 w-3 rounded-full"
+        style={{ background: t.colors.surface, outline: `1px solid ${t.colors.line}26` }}
+      />
+      <span className="text-left text-[11px] font-medium" style={{ color: t.colors.ink }}>
+        {t.name}
+      </span>
+    </button>
+  )
+}
+
 export default function SettingsScreen() {
   const store = useStore()
   const auth = useAuth()
@@ -220,28 +245,25 @@ export default function SettingsScreen() {
             <span className="text-[12px] text-muted">{themeById(store.settings.theme).name}</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {THEME_PRESETS.map((t) => {
-              const active = store.settings.theme === t.id
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => store.setSettings({ theme: t.id })}
-                  aria-pressed={active}
-                  className={`flex h-[72px] flex-col justify-between rounded-[14px] p-2.5 outline outline-1 transition-transform active:scale-[0.97] ${
-                    active ? 'outline-2 outline-accent' : 'outline-line/10'
-                  }`}
-                  style={{ background: `linear-gradient(-157deg, ${t.colors.bg} 14.645%, ${t.colors.bg2} 85.355%)` }}
-                >
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ background: t.colors.surface, outline: `1px solid ${t.colors.line}26` }}
-                  />
-                  <span className="text-left text-[11px] font-medium" style={{ color: t.colors.ink }}>
-                    {t.name}
-                  </span>
-                </button>
-              )
-            })}
+            {THEME_PRESETS.filter((t) => !t.id.startsWith('g-')).map((t) => (
+              <ThemeSwatch
+                key={t.id}
+                t={t}
+                active={store.settings.theme === t.id}
+                onPick={() => store.setSettings({ theme: t.id })}
+              />
+            ))}
+          </div>
+          <span className="mt-3 text-[10px] font-semibold tracking-[1.4px] text-muted">GRADIENTS</span>
+          <div className="grid grid-cols-3 gap-2">
+            {THEME_PRESETS.filter((t) => t.id.startsWith('g-')).map((t) => (
+              <ThemeSwatch
+                key={t.id}
+                t={t}
+                active={store.settings.theme === t.id}
+                onPick={() => store.setSettings({ theme: t.id })}
+              />
+            ))}
           </div>
           <div className="mt-1 flex items-center justify-between">
             <span className="text-[14px] font-semibold text-ink">Accent color</span>
