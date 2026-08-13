@@ -20,11 +20,171 @@
   --color-silver: #c9c9d6;
   --color-bronze: #d28a5a;
   --color-grape: #7c3aed;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-dock: #17171fcc;
+  --color-ring: #1b1b26;
+}
+
+[data-theme='dark'] {
+  --color-bg: #0b0b12;
+  --color-bg2: #131322;
+  --color-surface: #17171f;
+  --color-card: #18181b;
+  --color-tile: #232325;
+  --color-field: #0f0f16;
+  --color-dock: #17171fcc;
+  --color-ink: #f4f4f6;
+  --color-soft: #fcfcfc;
+  --color-sub: #a1a1aa;
+  --color-muted: #6e6e7a;
+  --color-faint: #9c9ca8;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-ring: #1b1b26;
+}
+
+[data-theme='light'] {
+  --color-bg: #f2f3f7;
+  --color-bg2: #e6e8f0;
+  --color-surface: #ffffff;
+  --color-card: #ffffff;
+  --color-tile: #edeef4;
+  --color-field: #ffffff;
+  --color-dock: rgba(255, 255, 255, 0.85);
+  --color-ink: #1b1c24;
+  --color-soft: #0e0f16;
+  --color-sub: #4e515c;
+  --color-muted: #8b8d9a;
+  --color-faint: #767986;
+  --color-line: #000000;
+  --color-overlay: rgba(0, 0, 0, 0.35);
+  --color-ring: #e4e6ee;
+}
+
+[data-theme='glass'] {
+  --color-bg: rgba(14, 14, 26, 0.55);
+  --color-bg2: rgba(20, 18, 48, 0.55);
+  --color-surface: rgba(255, 255, 255, 0.08);
+  --color-card: rgba(255, 255, 255, 0.07);
+  --color-tile: rgba(255, 255, 255, 0.12);
+  --color-field: rgba(0, 0, 0, 0.28);
+  --color-dock: rgba(16, 16, 30, 0.55);
+  --color-ink: #f4f4f6;
+  --color-soft: #ffffff;
+  --color-sub: #c6c4d4;
+  --color-muted: #8f8da0;
+  --color-faint: #a6a4b8;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-ring: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='midnight'] {
+  --color-bg: #0e0d1c;
+  --color-bg2: #171431;
+  --color-surface: #17142e;
+  --color-card: #1a1733;
+  --color-tile: #262143;
+  --color-field: #0b0a18;
+  --color-dock: rgba(14, 13, 28, 0.85);
+  --color-ink: #f1effa;
+  --color-soft: #faf9ff;
+  --color-sub: #b3aecc;
+  --color-muted: #6f6b8c;
+  --color-faint: #9c97b8;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-ring: #211d40;
+}
+
+[data-theme='oled'] {
+  --color-bg: #000000;
+  --color-bg2: #000000;
+  --color-surface: #0a0a0a;
+  --color-card: #0d0d0d;
+  --color-tile: #151515;
+  --color-field: #000000;
+  --color-dock: rgba(0, 0, 0, 0.9);
+  --color-ink: #f5f5f5;
+  --color-soft: #ffffff;
+  --color-sub: #a8a8a8;
+  --color-muted: #6e6e6e;
+  --color-faint: #9c9c9c;
+  --color-line: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.7);
+  --color-ring: #141414;
+}
+
+[data-theme='rose'] {
+  --color-bg: #fdf2f6;
+  --color-bg2: #fbe4ed;
+  --color-surface: #ffffff;
+  --color-card: #ffffff;
+  --color-tile: #f6e3ea;
+  --color-field: #ffffff;
+  --color-dock: rgba(255, 255, 255, 0.85);
+  --color-ink: #3a2430;
+  --color-soft: #1f0f17;
+  --color-sub: #8a6474;
+  --color-muted: #b08b9b;
+  --color-faint: #9d7488;
+  --color-line: #000000;
+  --color-overlay: rgba(0, 0, 0, 0.35);
+  --color-ring: #f1d9e2;
+}
+
+[data-theme='glass'] .screen-bg,
+[data-theme='glass'] .bg-surface,
+[data-theme='glass'] .bg-card,
+[data-theme='glass'] .bg-tile,
+[data-theme='glass'] .bg-field,
+[data-theme='glass'] .bg-dock {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+[data-theme='glass'] body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-accent) 18%, transparent),
+    #7c3aed2b,
+    color-mix(in srgb, var(--color-accent) 10%, transparent),
+    #0485f71f
+  );
+  background-size: 300% 300%;
+  animation: pulse-wallpaper 16s ease-in-out infinite;
+}
+
+@keyframes pulse-wallpaper {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 body {
-  background: #050508;
+  background-color: var(--color-bg);
   font-family: var(--font-sans);
+  transition: background-color 200ms ease;
+}
+
+.screen-bg,
+.bg-surface,
+.bg-card,
+.bg-tile,
+.bg-field,
+.bg-dock {
+  transition: background-color 180ms ease, background 180ms ease;
 }
 
 .no-scrollbar::-webkit-scrollbar {
