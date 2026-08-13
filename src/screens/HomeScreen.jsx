@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Activity, CircleCheck, CloudCheck, CloudOff, MoonStar, Plus, Trash2, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Activity, CircleCheck, MoonStar, Plus, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { dateKey, DAY_COLORS, WEEKDAY_NAMES } from '../lib/data'
-import { Chip, Screen, useNav } from '../components/ui'
+import { Chip, Modal, Screen, useNav } from '../components/ui'
 
 function weekOf(today) {
   const monday = new Date(today)
@@ -17,9 +17,9 @@ function weekOf(today) {
 
 function DayTile({ date, marker, today, onOpen, planned }) {
   const labels = ['push', 'pull', 'legs', 'rest']
-  const colors = { push: DAY_COLORS.push, pull: DAY_COLORS.pull, legs: DAY_COLORS.legs, rest: '#71717A' }
+  const colors = { push: DAY_COLORS.push, pull: DAY_COLORS.pull, legs: DAY_COLORS.legs, rest: 'var(--color-muted)' }
   const isToday = date.toDateString() === today.toDateString()
-  const color = planned ? planned.color : (colors[marker] ?? '#71717A')
+  const color = planned ? planned.color : (colors[marker] ?? 'var(--color-muted)')
   return (
     <button
       onClick={onOpen}
@@ -44,18 +44,6 @@ function DayTile({ date, marker, today, onOpen, planned }) {
 export default function HomeScreen() {
   const store = useStore()
   const nav = useNav()
-  const [online, setOnline] = useState(navigator.onLine)
-
-  useEffect(() => {
-    const on = () => setOnline(true)
-    const off = () => setOnline(false)
-    window.addEventListener('online', on)
-    window.addEventListener('offline', off)
-    return () => {
-      window.removeEventListener('online', on)
-      window.removeEventListener('offline', off)
-    }
-  }, [])
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -101,27 +89,6 @@ export default function HomeScreen() {
   return (
     <Screen activeTab="home">
       <div className="flex flex-col gap-6">
-        <div
-          className={`flex items-center gap-3 rounded-[18px] px-4 py-3 ${online ? 'bg-good/10' : 'bg-gold/10'}`}
-        >
-          <div
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${online ? 'bg-good/20' : 'bg-gold/20'}`}
-          >
-            {online ? (
-              <CloudCheck size={17} color="#17C964" strokeWidth={2.2} />
-            ) : (
-              <CloudOff size={17} color="#F5A524" strokeWidth={2.2} />
-            )}
-          </div>
-          <div className="flex flex-1 flex-col gap-[1px]">
-            <span className={`text-[14px] font-semibold ${online ? 'text-good' : 'text-gold'}`}>
-              {online ? 'Synced' : 'Offline'}
-            </span>
-            <span className="text-[12px] text-muted">
-              {online ? 'Everything is up to date' : 'Changes stay on this device'}
-            </span>
-          </div>
-        </div>
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -167,7 +134,7 @@ export default function HomeScreen() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && openDay(d)}
-              className="flex cursor-pointer flex-col gap-3 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A] transition-colors active:bg-[#23242B]"
+              className="flex cursor-pointer flex-col gap-3 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A] transition-colors active:bg-tile"
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-0.5">
@@ -185,7 +152,7 @@ export default function HomeScreen() {
                     aria-label={`Delete ${d.name}`}
                     className="flex h-9 w-9 items-center justify-center rounded-3xl"
                   >
-                    <Trash2 size={16} color="#A1A1AA" />
+                    <Trash2 size={16} color="var(--color-sub)" />
                   </button>
                 </div>
               </div>
@@ -198,7 +165,7 @@ export default function HomeScreen() {
           ))}
 
           <div className="flex items-center gap-3 rounded-[24px] bg-tile p-4">
-            <MoonStar size={20} color="#71717A" />
+            <MoonStar size={20} color="var(--color-muted)" />
             <div className="flex flex-1 flex-col gap-0.5">
               <span className="text-[14px] font-semibold text-soft">Rest Days</span>
               <span className="w-full text-[12px] text-sub">
@@ -212,58 +179,56 @@ export default function HomeScreen() {
           onClick={() => setCreating(true)}
           className="flex h-12 items-center justify-center gap-2 rounded-[24px] bg-accent"
         >
-          <Plus size={16} color="#FCFCFC" strokeWidth={2.5} />
+          <Plus size={16} color="var(--color-soft)" strokeWidth={2.5} />
           <span className="text-[14px] font-medium text-soft">Add Workout Day</span>
         </button>
       </div>
 
-      {creating && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[28vh]">
-          <div className="mx-4 flex w-[358px] max-w-[92vw] flex-col gap-4 rounded-[24px] bg-card p-6 shadow-[0px_10px_40px_0px_#00000030]">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
-                  <Plus size={18} color="var(--color-accent)" />
-                </div>
-                <span className="text-[16px] font-medium text-soft">New Workout Day</span>
+      <Modal open={creating} onClose={() => setCreating(false)}>
+        <div className="flex flex-col gap-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                <Plus size={18} color="var(--color-accent)" />
               </div>
-              <button
-                onClick={() => setCreating(false)}
-                className="flex h-6 w-6 items-center justify-center rounded-[12px] bg-tile"
-              >
-                <X size={16} color="#A1A1AA" />
-              </button>
+              <span className="text-[16px] font-medium text-soft">New Workout Day</span>
             </div>
-            <label className="text-[12px] text-sub">Workout name</label>
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && createDay()}
-              placeholder="e.g. Upper Body"
-              className="h-10 rounded-[12px] bg-[#262728] px-3.5 text-[13px] text-soft placeholder:text-sub shadow-[0px_2px_6px_0px_#0000000F] outline-none"
-            />
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                onClick={() => setCreating(false)}
-                className="h-8 rounded-[24px] bg-tile px-4 text-[13px] text-soft"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createDay}
-                className="h-8 rounded-[24px] bg-accent px-4 text-[13px] text-white"
-              >
-                Create
-              </button>
-            </div>
+            <button
+              onClick={() => setCreating(false)}
+              className="flex h-6 w-6 items-center justify-center rounded-[12px] bg-tile"
+            >
+              <X size={16} color="var(--color-sub)" />
+            </button>
+          </div>
+          <label className="text-[12px] text-sub">Workout name</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && createDay()}
+            placeholder="e.g. Upper Body"
+            className="h-11 rounded-[12px] bg-field px-3.5 text-[13px] text-soft placeholder:text-sub shadow-[0px_2px_6px_0px_#0000000F] outline-none"
+          />
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              onClick={() => setCreating(false)}
+              className="h-8 rounded-[24px] bg-tile px-4 text-[13px] text-soft"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={createDay}
+              className="h-8 rounded-[24px] bg-accent px-4 text-[13px] text-white"
+            >
+              Create
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
       {pickDate && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
           onClick={() => setPickDate(null)}
         >
           <div
@@ -285,7 +250,7 @@ export default function HomeScreen() {
                 onClick={() => setPickDate(null)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
               >
-                <X size={15} color="#A1A1AA" />
+                <X size={15} color="var(--color-sub)" />
               </button>
             </div>
             <div className="flex flex-col gap-2">
@@ -323,10 +288,10 @@ export default function HomeScreen() {
                   setPickDate(null)
                 }}
                 className={`flex items-center gap-3 rounded-[18px] p-3.5 text-left transition-colors ${
-                  !store.plan[dateKey(pickDate)] ? 'bg-tile' : 'bg-[#1C1C22]'
+                  !store.plan[dateKey(pickDate)] ? 'bg-tile' : 'bg-card'
                 }`}
               >
-                <MoonStar size={14} color="#71717A" />
+                <MoonStar size={14} color="var(--color-muted)" />
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className="text-[14px] font-semibold text-soft">Rest day</span>
                   <span className="text-[12px] text-muted">No workout — recovery is training too</span>
@@ -341,7 +306,7 @@ export default function HomeScreen() {
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
           <div className="mx-4 flex w-[320px] flex-col gap-4 rounded-[24px] bg-card p-6">
             <span className="text-[16px] font-semibold text-soft">
               Delete {confirmDelete.name}?
