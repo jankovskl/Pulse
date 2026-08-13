@@ -1,5 +1,21 @@
 export const DEFAULT_THEME = 'dark'
 
+const GRADIENT_TOKENS = {
+  surface: 'rgba(0,0,0,0.32)',
+  card: 'rgba(0,0,0,0.28)',
+  tile: 'rgba(255,255,255,0.10)',
+  field: 'rgba(0,0,0,0.38)',
+  dock: 'rgba(10,10,20,0.55)',
+  ink: '#F4F4F6',
+  soft: '#FFFFFF',
+  sub: '#C6C4D4',
+  muted: '#8F8DA0',
+  faint: '#A6A4B8',
+  line: '#FFFFFF',
+  overlay: 'rgba(0,0,0,0.5)',
+  ring: 'rgba(255,255,255,0.15)',
+}
+
 export const THEMES = [
   {
     id: 'dark',
@@ -133,8 +149,72 @@ export const THEMES = [
       ring: '#F1D9E2',
     },
   },
+  {
+    id: 'g-sweet-morning',
+    name: 'Sweet Morning',
+    glass: true,
+    colors: gradientThemeColors('#FF5F6D', '#FFC371'),
+  },
+  {
+    id: 'g-pure-lust',
+    name: 'Pure Lust',
+    glass: true,
+    colors: gradientThemeColors('#333333', '#DD1818'),
+  },
+  {
+    id: 'g-royal-blue',
+    name: 'Royal Blue',
+    glass: true,
+    colors: gradientThemeColors('#536976', '#292E49'),
+  },
+  {
+    id: 'g-purple-love',
+    name: 'Purple Love',
+    glass: true,
+    colors: gradientThemeColors('#CC2B5E', '#753A88'),
+  },
+  {
+    id: 'g-sublime-vivid',
+    name: 'Sublime Vivid',
+    glass: true,
+    colors: gradientThemeColors('#FC466B', '#3F5EFB'),
+  },
+  {
+    id: 'g-vice-city',
+    name: 'Vice City',
+    glass: true,
+    colors: gradientThemeColors('#3494E6', '#EC6EAD'),
+  },
+  {
+    id: 'g-love-couple',
+    name: 'Love Couple',
+    glass: true,
+    colors: gradientThemeColors('#3A6186', '#89253E'),
+  },
+  {
+    id: 'g-king-yna',
+    name: 'King Yna',
+    glass: true,
+    colors: gradientThemeColors('#1A2A6C', '#FDBB2D', '#B21F1F'),
+  },
+  {
+    id: 'g-pacific-dream',
+    name: 'Pacific Dream',
+    glass: true,
+    colors: gradientThemeColors('#34E89E', '#0F3443'),
+  },
+  {
+    id: 'g-dawn',
+    name: 'Dawn',
+    glass: true,
+    colors: gradientThemeColors('#F3904F', '#3B4371'),
+  },
 ]
 
 export function themeById(id) {
   return THEMES.find((t) => t.id === id) ?? THEMES[0]
+}
+
+function gradientThemeColors(bg, bg2, mid) {
+  return { ...GRADIENT_TOKENS, bg, bg2, ...(mid ? { mid } : {}) }
 }

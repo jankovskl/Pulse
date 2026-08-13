@@ -39,3 +39,19 @@ test('light themes use dark line tokens, dark themes use light line tokens', () 
 test('unknown id falls back to dark', () => {
   assert.equal(themeById('nope').id, DEFAULT_THEME)
 })
+
+test('gradient themes are glass with light ink', () => {
+  const gradients = THEMES.filter((t) => t.id.startsWith('g-'))
+  assert.ok(gradients.length >= 10, 'expected at least 10 gradient themes')
+  for (const t of gradients) {
+    assert.equal(t.glass, true, `${t.id} must be glass`)
+    assert.equal(t.colors.ink, '#F4F4F6', `${t.id} must use light ink`)
+    assert.ok(t.colors.bg.startsWith('#') && t.colors.bg2.startsWith('#'))
+  }
+})
+
+test('only King Yna uses a mid stop', () => {
+  const withMid = THEMES.filter((t) => t.colors.mid)
+  assert.deepEqual(withMid.map((t) => t.id), ['g-king-yna'])
+  assert.equal(withMid[0].colors.mid, '#B21F1F')
+})
