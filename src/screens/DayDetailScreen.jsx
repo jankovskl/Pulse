@@ -30,9 +30,9 @@ function Stepper({ label, value, min = 0, step = 1, onChange }) {
       <span className="mr-2 text-[11px] text-sub">{label}</span>
       <button
         onClick={() => onChange(Math.max(min, Math.round((value - step) * 10) / 10))}
-        className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-white/5 bg-white/5"
+        className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line/5 bg-line/5"
       >
-        <Minus size={12} color="#A1A1AA" />
+        <Minus size={12} color="var(--color-sub)" />
       </button>
       {editing ? (
         <input
@@ -61,9 +61,9 @@ function Stepper({ label, value, min = 0, step = 1, onChange }) {
       )}
       <button
         onClick={() => onChange(Math.round((value + step) * 10) / 10)}
-        className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-white/5 bg-white/5"
+        className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-line/5 bg-line/5"
       >
-        <Plus size={12} color="#A1A1AA" />
+        <Plus size={12} color="var(--color-sub)" />
       </button>
     </div>
   )
@@ -116,7 +116,7 @@ export default function DayDetailScreen() {
             onClick={() => nav.go('home')}
             className="flex h-9 items-center gap-2 rounded-3xl px-2"
           >
-            <ChevronLeft size={16} color="#FCFCFC" />
+            <ChevronLeft size={16} color="var(--color-soft)" />
             <span className="text-[13px] text-soft">My Split</span>
           </button>
           <div className="flex flex-1 flex-col gap-0">
@@ -128,7 +128,7 @@ export default function DayDetailScreen() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-white/10">
+        <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
           <div className="flex items-center justify-between">
             <span className="text-[16px] font-bold text-soft">Today's session</span>
             <span className="text-[12px] text-sub">
@@ -143,7 +143,7 @@ export default function DayDetailScreen() {
                 {done}/{day.exercises.length}
               </span>
             </div>
-            <div className="h-1 rounded bg-white/5">
+            <div className="h-1 rounded bg-line/5">
               <div
                 className="h-1 rounded bg-accent/15"
                 style={{ width: `${pct}%`, background: pct === 100 ? '#17C964' : 'var(--color-accent)' }}
@@ -158,7 +158,7 @@ export default function DayDetailScreen() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmStop(false)}
-                  className="flex h-11 flex-1 items-center justify-center rounded-[24px] bg-tile text-[14px] font-medium text-silver"
+                  className="flex h-11 flex-1 items-center justify-center rounded-[24px] bg-tile text-[14px] font-medium text-sub"
                 >
                   No
                 </button>
@@ -195,7 +195,7 @@ export default function DayDetailScreen() {
               ) : showDone ? (
                 <CircleCheck size={17} color="#17C964" strokeWidth={2.5} />
               ) : (
-                <Play size={15} color="#FCFCFC" fill="#FCFCFC" />
+                <Play size={15} color="var(--color-soft)" fill="var(--color-soft)" />
               )}
               <span
                 className={`text-[14px] font-medium ${
@@ -241,7 +241,7 @@ export default function DayDetailScreen() {
               className={`flex flex-col gap-3 rounded-[20px] p-4 transition-opacity ${
                 dragIdx === i ? 'opacity-40' : ''
               } ${
-                e.done ? 'bg-good/15' : 'bg-surface outline outline-1 outline-white/10'
+                e.done ? 'bg-good/15' : 'bg-surface outline outline-1 outline-line/10'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export default function DayDetailScreen() {
                     <CircleCheck size={16} color="#17C964" />
                   </button>
                 ) : (
-                  <GripVertical size={16} color="#6E6E7A" className="cursor-grab shrink-0" />
+                  <GripVertical size={16} color="var(--color-muted)" className="cursor-grab shrink-0" />
                 )}
                 <div className="flex flex-1 flex-col">
                   <span className="text-[14px] font-medium text-soft">{e.name}</span>
@@ -266,14 +266,14 @@ export default function DayDetailScreen() {
                     className="flex h-9 w-9 items-center justify-center"
                     title="Mark done"
                   >
-                    <CircleCheck size={22} color="#6E6E7A" className="opacity-40" />
+                    <CircleCheck size={22} color="var(--color-muted)" className="opacity-40" />
                   </button>
                 )}
                 <button
                   onClick={() => store.removeExercise(day.id, e.id)}
                   className="flex h-9 w-9 items-center justify-center"
                 >
-                  <Trash2 size={15} color="#A1A1AA" />
+                  <Trash2 size={15} color="var(--color-sub)" />
                 </button>
               </div>
               <div
