@@ -42,3 +42,14 @@ export function mergeState(localState, remote, localUpdatedAt) {
   const localTs = localUpdatedAt ?? 0
   return remote.updatedAt >= localTs ? remote.data : localState
 }
+
+// True when the state holds actual workout data (days, sessions or a plan).
+// An empty state — e.g. right after "delete all data" while signed out — must
+// never be pushed over a real cloud copy, or the cloud data is lost.
+export function hasWorkoutData(state) {
+  return (
+    (state?.days?.length ?? 0) > 0 ||
+    (state?.sessions?.length ?? 0) > 0 ||
+    Object.keys(state?.plan ?? {}).length > 0
+  )
+}

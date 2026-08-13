@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadRemote, pushState, loginLift, mergeState } from './sync.js'
+import { loadRemote, pushState, loginLift, mergeState, hasWorkoutData } from './sync.js'
 
 function makeClient({ queryResult, onUpsert } = {}) {
   return {
@@ -56,6 +56,17 @@ test('loadRemote returns null when the row is missing', async () => {
 test('loadRemote throws on query error', async () => {
   const client = makeClient({ queryResult: { data: null, error: new Error('boom') } })
   await assert.rejects(() => loadRemote(client, 'u1'))
+})
+
+test('hasWorkoutData is false for an empty state', () => {
+  assert.equal(hasWorkoutData({ days: [], sessions: [], plan: {} }), false)
+  assert.equal(hasWorkoutData(null), false)
+})
+
+test('hasWorkoutData is true when days, sessions or plan exist', () => {
+  assert.equal(hasWorkoutData({ days: [{ id: 'a' }], sessions: [], plan: {} }), true)
+  assert.equal(hasWorkoutData({ days: [], sessions: [{ id: 's' }], plan: {} }), true)
+  assert.equal(hasWorkoutData({ days: [], sessions: [], plan: { a: 'b' } }), true)
 })
 
 test('pushState upserts the whole state under user_id', async () => {
