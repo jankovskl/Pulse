@@ -96,7 +96,7 @@ export default function TimerScreen() {
           </div>
         )}
 
-        <div className="relative flex h-[280px] w-[280px] items-center justify-center overflow-hidden rounded-full">
+        <div className="relative flex h-[320px] w-[320px] items-center justify-center overflow-hidden rounded-full">
           <svg width="280" height="280" viewBox="0 0 280 280" className="-rotate-90">
             <defs>
               <radialGradient id="ringHalo" cx="50%" cy="50%" r="50%">
