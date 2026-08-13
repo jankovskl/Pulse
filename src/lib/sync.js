@@ -30,6 +30,11 @@ export async function loginLift(supabase, userId, exercise, weight) {
   if (error) throw error
 }
 
+export async function clearLifts(supabase, userId) {
+  const { error } = await supabase.from('lifts').delete().eq('user_id', userId)
+  if (error) throw error
+}
+
 // Last-write-wins merge. `remote` is the {data, updatedAt} shape from
 // loadRemote; `localUpdatedAt` is the timestamp of the last successful push.
 export function mergeState(localState, remote, localUpdatedAt) {

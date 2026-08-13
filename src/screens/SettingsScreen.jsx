@@ -12,14 +12,15 @@ import {
   Palette,
   Pencil,
   Rocket,
+  Trash2,
   Upload,
   User,
   X,
 } from 'lucide-react'
-import { useStore } from '../lib/store'
+import { useStore, suppressNextPull, resetPullSuppression } from '../lib/store'
 import { fetchChangelog } from '../lib/changelog'
 import { useAuth } from '../lib/auth'
-import { isSupabaseEnabled } from '../lib/supabase'
+import { isSupabaseEnabled, supabase } from '../lib/supabase'
 import { THEMES as THEME_PRESETS, themeById } from '../lib/themes'
 import AuthModal from '../components/AuthModal'
 import { Avatar, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
@@ -75,6 +76,10 @@ export default function SettingsScreen() {
   const fileRef = useRef(null)
   const authDialog = useDialog()
   const signOutDialog = useDialog()
+  const deleteDialog = useDialog()
+  const [deletePw, setDeletePw] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   const [changelog, setChangelog] = useState(null)
   const [failed, setFailed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -132,6 +137,34 @@ export default function SettingsScreen() {
       }
     }
     reader.readAsText(file)
+  }
+
+  async function deleteAllData() {
+    if (deleteBusy) return
+    setDeleteBusy(true)
+    setDeleteError(null)
+    if (auth.user) suppressNextPull()
+    try {
+      if (auth.user) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: auth.user.email,
+          password: deletePw,
+        })
+        if (error) {
+          resetPullSuppression()
+          setDeleteError('Incorrect password')
+          setDeleteBusy(false)
+          return
+        }
+      }
+      store.clearAllData()
+      deleteDialog.closeDialog()
+      setDeletePw('')
+    } catch {
+      setDeleteError('Something went wrong. Try again.')
+    } finally {
+      setDeleteBusy(false)
+    }
   }
 
   return (
@@ -309,6 +342,13 @@ export default function SettingsScreen() {
               e.target.value = ''
             }}
           />
+          <Row
+            icon={<Trash2 size={15} color="#DB3B3E" />}
+            iconBg="bg-[#DB3B3E]/15"
+            title="Delete all workout data"
+            subtitle={auth.user ? 'Erases workouts, stats & cloud copy' : 'Erases workouts & stats from this device'}
+            onClick={deleteDialog.openDialog}
+          />
         </div>
 
         <div className="flex flex-col gap-2.5">
@@ -427,6 +467,52 @@ export default function SettingsScreen() {
       )}
 
       <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
+
+      <Modal open={deleteDialog.open} onClose={deleteDialog.closeDialog}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[16px] font-semibold text-soft">Delete all workout data?</span>
+            <span className="text-[12px] text-muted">
+              {auth.user
+                ? 'This permanently erases your workouts, stats and the cloud copy. This cannot be undone.'
+                : 'This permanently erases all workouts and stats on this device. This cannot be undone.'}
+            </span>
+          </div>
+
+          {auth.user && (
+            <input
+              type="password"
+              value={deletePw}
+              onChange={(e) => setDeletePw(e.target.value)}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              className="h-11 rounded-[12px] bg-field px-3 text-[14px] text-ink outline outline-1 outline-line/10 placeholder:text-faint"
+            />
+          )}
+
+          {deleteError && <span className="text-[12px] text-[#FF7A7D]">{deleteError}</span>}
+
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => {
+                deleteDialog.closeDialog()
+                setDeletePw('')
+                setDeleteError(null)
+              }}
+              className="h-11 flex-1 rounded-[14px] bg-tile text-[14px] font-semibold text-ink"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={deleteAllData}
+              disabled={deleteBusy || (auth.user && !deletePw)}
+              className="h-11 flex-1 rounded-[14px] bg-[#DB3B3E] text-[14px] font-semibold text-white disabled:opacity-50"
+            >
+              {deleteBusy ? 'Deleting…' : 'Delete everything'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={signOutDialog.open} onClose={signOutDialog.closeDialog}>
         <div className="flex flex-col gap-4">

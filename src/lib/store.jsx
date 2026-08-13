@@ -1,9 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import { getUserId, subscribeUser } from './auth'
-import { loadRemote, pushState, loginLift } from './sync'
+import { loadRemote, pushState, loginLift, clearLifts } from './sync'
 
 const KEY = 'pulse.state.v2'
+
+// Set before a password re-auth so the SIGNED_IN event that fires cannot
+// re-download the (soon-to-be-deleted) cloud state over local changes.
+let suppressPull = false
+export function suppressNextPull() {
+  suppressPull = true
+}
+export function resetPullSuppression() {
+  suppressPull = false
+}
 
 const DEFAULT = {
   days: [],
@@ -67,6 +77,10 @@ export function StoreProvider({ children }) {
 
   async function syncOnLogin(userId) {
     if (!supabase || !userId) return
+    if (suppressPull) {
+      suppressPull = false
+      return
+    }
     try {
       const remote = await loadRemote(supabase, userId)
       if (remote) {
@@ -328,6 +342,18 @@ export function StoreProvider({ children }) {
           settings: { ...DEFAULT.settings, ...data.settings },
         })
         return true
+      },
+
+      clearAllData() {
+        const userId = getUserId()
+        setState((s) => ({
+          days: [],
+          sessions: [],
+          plan: {},
+          settings: s.settings,
+          lastActiveExercise: null,
+        }))
+        if (supabase && userId) clearLifts(supabase, userId).catch(() => {})
       },
     }),
     [state],
