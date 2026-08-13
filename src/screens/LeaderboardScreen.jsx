@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { fetchTopLifts, buildRows } from '../lib/leaderboard'
+import { fetchProfiles } from '../lib/profile'
 import { Avatar, initialsOf, Screen, useNav } from '../components/ui'
 
 export default function LeaderboardScreen() {
@@ -39,8 +40,10 @@ export default function LeaderboardScreen() {
     let active = true
     const load = async () => {
       try {
-        const [top] = await Promise.all([fetchTopLifts(supabase, current)])
-        if (active) setLiveRows(buildRows(top, auth.user.id))
+        const top = await fetchTopLifts(supabase, current)
+        const ids = top.map((l) => l.user_id)
+        const profileMap = await fetchProfiles(supabase, ids).catch(() => ({}))
+        if (active) setLiveRows(buildRows(top, auth.user.id, profileMap))
       } catch {}
     }
     load()
@@ -74,7 +77,7 @@ export default function LeaderboardScreen() {
             onClick={() => nav.go('progress')}
             className="flex h-9 w-9 items-center justify-center rounded-3xl"
           >
-            <ChevronLeft size={18} color="#F4F4F6" />
+            <ChevronLeft size={18} color="var(--color-ink)" />
           </button>
           <div className="flex flex-col">
             <h1 className="text-[26px] font-bold text-ink">Leaderboard</h1>
@@ -90,11 +93,11 @@ export default function LeaderboardScreen() {
             onClick={() => setOpen(!open)}
             className="flex h-9 w-full items-center justify-between rounded-[12px] bg-card px-3 shadow-[0px_2px_6px_0px_#0000000F]"
           >
-            <span className="text-[13px] text-[#C9C9D6]">{current}</span>
-            <ChevronDown size={16} color="#9C9CA8" />
+            <span className="text-[13px] text-sub">{current}</span>
+            <ChevronDown size={16} color="var(--color-faint)" />
           </button>
           {open && (
-            <div className="absolute inset-x-0 top-[70px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-white/10">
+            <div className="absolute inset-x-0 top-[70px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
               {exOptions.map((e) => {
                 const active = e === current
                 return (
@@ -105,13 +108,13 @@ export default function LeaderboardScreen() {
                       setOpen(false)
                     }}
                     className={`flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-[13px] ${
-                      active ? 'bg-accent/15 text-accent' : 'text-[#C9C9D6]'
+                      active ? 'bg-accent/15 text-accent' : 'text-sub'
                     }`}
                   >
                     {active ? (
                       <Check size={16} color="var(--color-accent)" strokeWidth={2.5} />
                     ) : (
-                      <Dumbbell size={16} color="#9C9CA8" />
+                      <Dumbbell size={16} color="var(--color-faint)" />
                     )}
                     {e}
                   </button>
@@ -144,7 +147,7 @@ export default function LeaderboardScreen() {
                       : 'h-[64px] bg-gradient-to-b from-[#B08D5722] to-transparent outline-[#B08D5740]'
                 }`}
               >
-                <Avatar initials={initialsOf(r.name)} color={r.color} size={30} />
+                <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
                 <span className="mt-1 text-[13px] font-bold text-ink">{r.weight}</span>
               </div>
               <span
@@ -165,7 +168,7 @@ export default function LeaderboardScreen() {
               className={`flex items-center gap-3 rounded-[16px] px-3.5 py-3 ${
                 r.you
                   ? 'bg-accent/15 outline outline-1 outline-accent/40'
-                  : 'bg-surface outline outline-1 outline-white/10'
+                  : 'bg-surface outline outline-1 outline-line/10'
               }`}
             >
               <span
@@ -173,7 +176,7 @@ export default function LeaderboardScreen() {
               >
                 {r.rank}
               </span>
-              <Avatar initials={initialsOf(r.name)} color={r.color} size={30} />
+              <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
               <div className="flex flex-1 flex-col leading-tight">
                 <span className="text-[14px] font-medium text-ink">{r.name}</span>
                 <span className="text-[11px] text-muted">{r.handle}</span>
