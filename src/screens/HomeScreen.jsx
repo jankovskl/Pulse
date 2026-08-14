@@ -109,7 +109,7 @@ export default function HomeScreen() {
             <span className="text-[14px] font-semibold text-soft">This Week</span>
             <span className="text-[12px] text-muted">{dateRange}</span>
           </div>
-          <div className="flex h-[88px] gap-1.5">
+          <div className="flex h-[88px] gap-1.5 md:h-[110px] md:grid md:grid-cols-7 md:gap-2">
             {week.map((date) => (
               <DayTile
                 key={date.toISOString()}
@@ -134,7 +134,7 @@ export default function HomeScreen() {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && openDay(d)}
-              className="flex cursor-pointer flex-col gap-3 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A] transition-colors active:bg-tile"
+              className="flex cursor-pointer flex-col gap-3 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A] transition-colors active:bg-tile md:flex-row md:items-center md:gap-6"
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-0.5">
