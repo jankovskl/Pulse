@@ -22,5 +22,6 @@ The desktop app ships with auto-update support wired through GitHub Releases. To
 1. The repo must be on GitHub (the updater endpoint in `src-tauri/tauri.conf.json` currently uses a `<user>/<repo>` placeholder — replace it with your real repository path).
 2. Add two GitHub Actions secrets to the repo: `TAURI_SIGNING_PRIVATE_KEY` (contents of `%USERPROFILE%\.tauri\pulse.key`) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (that key's password). Without them the workflow cannot sign the update manifest.
 3. Tag a version (e.g. `v0.1.0`) and push it. The `.github/workflows/release.yml` workflow builds the NSIS installer, signs it, and uploads the installer plus the updater manifest (`latest.json`) to a draft GitHub Release.
+4. Publish the draft GitHub Release — the updater endpoint `/releases/latest/download/latest.json` only serves published releases, so clients cannot update until the draft is published.
 
 The app then checks that Release for updates on launch and prompts the user to install newer versions.
