@@ -17,13 +17,13 @@ export default function LibraryScreen() {
   )
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = query.trim().toLowerCase().replace(/-/g, ' ')
     const words = q ? q.split(/\s+/).filter(Boolean) : []
     const inCat = (e) => cat === 'All' || e.muscle === cat
     if (!q) return LIBRARY.filter(inCat)
 
     const score = (name) => {
-      const n = name.toLowerCase()
+      const n = name.toLowerCase().replace(/-/g, ' ')
       if (n === q) return 1000
       if (n.startsWith(q)) return 900
       if (n.includes(q)) return 800
