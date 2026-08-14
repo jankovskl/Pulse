@@ -208,7 +208,7 @@ export default function SettingsScreen() {
               <span className="text-[14px] font-semibold text-ink">Theme</span>
               <span className="text-[12px] text-muted">{themeById(store.settings.theme).name}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
               {THEME_PRESETS.filter((t) => !t.id.startsWith('g-')).map((t) => (
                 <ThemeSwatch
                   key={t.id}
@@ -219,7 +219,7 @@ export default function SettingsScreen() {
               ))}
             </div>
             <span className="mt-3 text-[10px] font-semibold tracking-[1.4px] text-muted">GRADIENTS</span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
               {THEME_PRESETS.filter((t) => t.id.startsWith('g-')).map((t) => (
                 <ThemeSwatch
                   key={t.id}

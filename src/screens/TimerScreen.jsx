@@ -44,7 +44,7 @@ export default function TimerScreen() {
 
   return (
     <Screen activeTab="timer">
-      <div className="flex flex-col items-center gap-5">
+      <div className="flex flex-col items-center gap-5 md:mx-auto md:w-full md:max-w-[520px]">
         <h1 className="self-start text-[26px] font-bold text-ink">Rest Timer</h1>
 
         {day ? (
