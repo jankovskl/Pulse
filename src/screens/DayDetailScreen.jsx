@@ -238,7 +238,7 @@ export default function DayDetailScreen() {
                 setDragIdx(null)
                 setDropIdx(null)
               }}
-              className={`flex flex-col gap-3 rounded-[20px] p-4 transition-opacity ${
+              className={`flex flex-col gap-3 rounded-[20px] p-4 transition-opacity md:flex-row md:items-center md:justify-between ${
                 dragIdx === i ? 'opacity-40' : ''
               } ${
                 e.done ? 'bg-good/15' : 'bg-surface outline outline-1 outline-line/10'
@@ -277,7 +277,7 @@ export default function DayDetailScreen() {
                 </button>
               </div>
               <div
-                className={`flex flex-wrap items-center gap-3 pl-6 ${
+                className={`flex flex-wrap items-center gap-3 pl-6 md:pl-0 md:justify-end ${
                   e.done ? 'pointer-events-none select-none opacity-55' : ''
                 }`}
               >

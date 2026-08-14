@@ -132,9 +132,9 @@ export default function LibraryScreen() {
             return (
               <div
                 key={ex.name}
-                className="flex items-center justify-between border-b border-line/5 py-3 last:border-b-0"
+                className="flex items-center justify-between border-b border-line/5 py-3 last:border-b-0 md:rounded-[16px] md:border md:border-line/5 md:px-3"
               >
-                <div className="flex flex-col">
+<div className="flex flex-col md:grid md:grid-cols-2 md:gap-x-6">
                   <span className="text-[14px] font-medium text-ink">{ex.name}</span>
                   <span className="text-[12px] text-muted">{ex.muscle}</span>
                 </div>
