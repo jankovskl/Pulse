@@ -18,11 +18,43 @@ export default function LibraryScreen() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return LIBRARY.filter(
-      (e) =>
-        (cat === 'All' || e.muscle === cat) &&
-        (!q || e.name.toLowerCase().includes(q) || e.muscle.toLowerCase().includes(q)),
-    )
+    const words = q ? q.split(/\s+/).filter(Boolean) : []
+    const inCat = (e) => cat === 'All' || e.muscle === cat
+    if (!q) return LIBRARY.filter(inCat)
+
+    const score = (name) => {
+      const n = name.toLowerCase()
+      if (n === q) return 1000
+      if (n.startsWith(q)) return 900
+      if (n.includes(q)) return 800
+      const nWords = n.split(/\s+/)
+      let total = 0
+      let lastIdx = -1
+      for (const w of words) {
+        let best = 0
+        let bestIdx = -1
+        for (let i = 0; i < nWords.length; i++) {
+          let s = 0
+          if (nWords[i] === w) s = 300
+          else if (nWords[i].startsWith(w)) s = 200
+          else if (nWords[i].includes(w)) s = 100
+          if (s > best) {
+            best = s
+            bestIdx = i
+          }
+        }
+        if (best === 0) return -1
+        total += best + (bestIdx > lastIdx ? 20 : 0)
+        lastIdx = bestIdx
+      }
+      return total
+    }
+
+    return LIBRARY.filter(inCat)
+      .map((e) => ({ e, s: e.muscle.toLowerCase().includes(q) ? 50 : score(e.name) }))
+      .filter((x) => x.s >= 0)
+      .sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name))
+      .map((x) => x.e)
   }, [query, cat])
 
   const inDay = (name) => dayExerciseNames.has(name)
