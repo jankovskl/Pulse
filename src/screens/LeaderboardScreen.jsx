@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronLeft, Dumbbell, Lock } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Lock } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
-import { fetchTopLifts, buildRows } from '../lib/leaderboard'
-import { fetchProfiles } from '../lib/profile'
+import {
+  fetchTopLifts,
+  buildRows,
+  fetchUserLifts,
+  fetchLiftRanks,
+  fetchDistinctExercises,
+  notDoneExercises,
+  buildPlayerExerciseList,
+} from '../lib/leaderboard'
+import { fetchProfiles, searchProfiles } from '../lib/profile'
+import LeaderboardFilterBar from '../components/LeaderboardFilterBar'
 import AuthModal from '../components/AuthModal'
 import { Avatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
 
@@ -17,12 +26,28 @@ export default function LeaderboardScreen() {
   const [exercise, setExercise] = useState(nav.ex || '')
   const [open, setOpen] = useState(false)
   const [liveRows, setLiveRows] = useState(null)
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [player, setPlayer] = useState(null) // { user_id, nickname, pfp } | null
+  const [playerRows, setPlayerRows] = useState(null) // null = loading
+  const [notDoing, setNotDoing] = useState(false)
+  const [notDoingOptions, setNotDoingOptions] = useState(null) // null = loading/off
+  const [filterTick, setFilterTick] = useState(0)
+  const refreshTimer = useRef(null)
 
   const exOptions = useMemo(
     () => exerciseOptions(store.days, store.sessions),
     [store.days, store.sessions],
   )
-  const current = exercise || exOptions[0] || 'Bench Press'
+  const options = notDoing ? (notDoingOptions ?? []) : exOptions
+  const exitPlayer = () => {
+    setPlayer(null)
+    setQuery('')
+    setSearchResults([])
+  }
+  const current = exercise || options[0] || 'Bench Press'
 
   const exSessions = useMemo(
     () => store.sessions.filter((s) => s.exercise === current),
@@ -32,6 +57,78 @@ export default function LeaderboardScreen() {
     () => Math.max(0, ...exSessions.map((s) => s.weight ?? 0)),
     [exSessions],
   )
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300)
+    return () => clearTimeout(t)
+  }, [query])
+
+  useEffect(() => {
+    if (!supabase || !auth.user || !debouncedQuery) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+    let active = true
+    setSearching(true)
+    searchProfiles(supabase, debouncedQuery)
+      .then((res) => {
+        if (active) setSearchResults(res)
+      })
+      .catch(() => {
+        if (active) setSearchResults([])
+      })
+      .finally(() => {
+        if (active) setSearching(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [debouncedQuery, auth.user])
+
+  useEffect(() => {
+    if (!supabase || !player) {
+      setPlayerRows(null)
+      return
+    }
+    let active = true
+    const load = async () => {
+      try {
+        const lifts = await fetchUserLifts(supabase, player.user_id)
+        const ranks = await fetchLiftRanks(supabase, lifts)
+        if (active) setPlayerRows(buildPlayerExerciseList(lifts, ranks))
+      } catch {
+        if (active) setPlayerRows([])
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [player, auth.user, filterTick])
+
+  useEffect(() => {
+    if (!supabase || !auth.user || !notDoing) {
+      setNotDoingOptions(null)
+      return
+    }
+    let active = true
+    const load = async () => {
+      try {
+        const [all, mine] = await Promise.all([
+          fetchDistinctExercises(supabase),
+          fetchUserLifts(supabase, auth.user.id).then((l) => l.map((x) => x.exercise)),
+        ])
+        if (active) setNotDoingOptions(notDoneExercises(all, mine))
+      } catch {
+        if (active) setNotDoingOptions([])
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [notDoing, auth.user, filterTick])
 
   // When signed in, pull real lifts (and keep them live via realtime).
   useEffect(() => {
@@ -63,6 +160,26 @@ export default function LeaderboardScreen() {
     }
   }, [current, auth.user])
 
+  useEffect(() => {
+    if (notDoing && notDoingOptions?.length && !notDoingOptions.includes(current)) {
+      setExercise(notDoingOptions[0])
+    }
+  }, [notDoing, notDoingOptions, current])
+
+  useEffect(() => {
+    if (!supabase || !auth.user || (!player && !notDoing)) return
+    const channel = supabase
+      .channel('lifts:all')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lifts' }, () => {
+        clearTimeout(refreshTimer.current)
+        refreshTimer.current = setTimeout(() => setFilterTick((t) => t + 1), 500)
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [player, notDoing, auth.user])
+
   const rows = useMemo(
     () => (liveRows ? liveRows : leaderboardFor(current, userBest)),
     [liveRows, current, userBest],
@@ -87,10 +204,80 @@ export default function LeaderboardScreen() {
           </div>
         </div>
 
-        <div className="relative">
-          <span className="mb-1.5 block text-[10px] font-semibold tracking-[1px] text-muted">
-            EXERCISE
-          </span>
+        {auth.user && !player && (
+          <LeaderboardFilterBar
+            query={query}
+            onQueryChange={setQuery}
+            results={searchResults}
+            onSelectPlayer={(p) => {
+              setPlayer(p)
+              setQuery('')
+              setSearchResults([])
+            }}
+            onClearQuery={() => {
+              setQuery('')
+              setSearchResults([])
+            }}
+            notDoing={notDoing}
+            onToggleNotDoing={() => setNotDoing((v) => !v)}
+            searching={searching}
+          />
+        )}
+
+        {player ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exitPlayer}
+                className="flex h-9 w-9 items-center justify-center rounded-3xl"
+              >
+                <ChevronLeft size={18} color="var(--color-ink)" />
+              </button>
+              <Avatar
+                initials={initialsOf(player.nickname || player.user_id)}
+                color="#3B3B47"
+                size={30}
+                src={player.pfp}
+              />
+              <div className="flex flex-col">
+                <span className="text-[15px] font-semibold text-ink">{player.nickname}</span>
+                <span className="text-[11px] text-faint">
+                  {playerRows === null ? 'Loading lifts…' : `${playerRows.length} exercises`}
+                </span>
+              </div>
+            </div>
+            {playerRows === null ? null : playerRows.length === 0 ? (
+              <p className="text-[11px] leading-relaxed text-faint">This player has no lifts yet.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {playerRows.map((r) => (
+                  <button
+                    key={r.exercise}
+                    onClick={() => {
+                      setExercise(r.exercise)
+                      exitPlayer()
+                    }}
+                    className="flex items-center gap-3 rounded-[16px] bg-surface px-3.5 py-3 text-left outline outline-1 outline-line/10"
+                  >
+                    <div className="flex flex-1 flex-col">
+                      <span className="text-[14px] font-medium text-ink">{r.exercise}</span>
+                      <span className="text-[11px] text-muted">{r.weight} kg</span>
+                    </div>
+                    <span className="text-[14px] font-semibold text-ink">
+                      {r.rank <= 3 ? (r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉') : `#${r.rank}`}
+                    </span>
+                    <ChevronRight size={16} color="var(--color-faint)" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              <span className="mb-1.5 block text-[10px] font-semibold tracking-[1px] text-muted">
+                EXERCISE
+              </span>
           <button
             onClick={() => setOpen(!open)}
             className="flex h-9 w-full items-center justify-between rounded-[12px] bg-card px-3 shadow-[0px_2px_6px_0px_#0000000F]"
@@ -100,7 +287,7 @@ export default function LeaderboardScreen() {
           </button>
           {open && (
             <div className="absolute inset-x-0 top-[70px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
-              {exOptions.map((e) => {
+              {options.map((e) => {
                 const active = e === current
                 return (
                   <button
@@ -130,6 +317,10 @@ export default function LeaderboardScreen() {
           <p className="text-[11px] leading-relaxed text-faint">
             Log in to see real lifts from athletes worldwide.
           </p>
+        ) : notDoing ? (
+          notDoingOptions !== null && !notDoingOptions.length ? (
+            <p className="text-[11px] leading-relaxed text-faint">You're on every board.</p>
+          ) : null
         ) : (
           !hasUser && (
             <p className="text-[11px] leading-relaxed text-faint">
@@ -217,7 +408,9 @@ export default function LeaderboardScreen() {
             </div>
           )}
         </div>
-      </div>
+          </>
+        )}
+        </div>
 
       <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>
