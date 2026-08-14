@@ -213,6 +213,8 @@ export default function LeaderboardScreen() {
               setPlayer(p)
               setQuery('')
               setSearchResults([])
+              setNotDoing(false)
+              setNotDoingOptions(null)
             }}
             onClearQuery={() => {
               setQuery('')
