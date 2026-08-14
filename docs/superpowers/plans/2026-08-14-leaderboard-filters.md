@@ -98,7 +98,7 @@ test('fetchLiftRanks computes 1-based rank per exercise', async () => {
 })
 
 test('fetchDistinctExercises returns unique non-null exercises sorted', async () => {
-  const client = { from: () => ({ select: (c, opts) => ({ distinct: async () => ({ data: [{ exercise: 'Squat' }, { exercise: 'Squat' }, { exercise: 'Deadlift' }, { exercise: null }], error: null }) }) }) }
+  const client = { from: () => ({ select: async (c, opts) => ({ data: [{ exercise: 'Squat' }, { exercise: 'Squat' }, { exercise: 'Deadlift' }, { exercise: null }], error: null }) }) }
   const out = await fetchDistinctExercises(client)
   assert.deepEqual(out, ['Deadlift', 'Squat'])
 })
