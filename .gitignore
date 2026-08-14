@@ -30,3 +30,6 @@ dist-ssr
 
 # Agent scratch (SDD workspaces)
 .superpowers/
+
+# Tauri Rust build output
+src-tauri/target
