@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchProfile, saveProfile, uploadAvatar, fetchProfiles } from './profile.js'
+import { fetchProfile, saveProfile, uploadAvatar, fetchProfiles, searchProfiles } from './profile.js'
 
 const ok = (data) => ({
   from: () => ({
@@ -69,4 +69,25 @@ test('fetchProfiles maps user ids to profiles', async () => {
   const map = await fetchProfiles(supa, ['a', 'b'])
   assert.equal(map.a.nickname, 'Anna')
   assert.equal(map.b.pfp, 'https://x/b.png')
+})
+
+test('searchProfiles finds nicknames by substring (case-insensitive)', async () => {
+  const supa = {
+    from: () => ({
+      select: () => ({
+        ilike: () => ({
+          limit: async () => ({
+            data: [
+              { user_id: 'u1', nickname: 'Marcus', pfp: null },
+              { user_id: 'u2', nickname: 'Marco', pfp: 'https://x/m.png' },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  }
+  const out = await searchProfiles(supa, 'mar')
+  assert.equal(out.length, 2)
+  assert.equal(out[0].nickname, 'Marcus')
 })

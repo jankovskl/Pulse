@@ -51,3 +51,15 @@ export async function fetchProfiles(supabase, userIds) {
   }
   return map
 }
+
+// Search profiles by nickname (case-insensitive substring). Used by the
+// leaderboard player search.
+export async function searchProfiles(supabase, query, limit = 8) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, nickname, pfp')
+    .ilike('nickname', `%${query}%`)
+    .limit(limit)
+  if (error) throw error
+  return data ?? []
+}
