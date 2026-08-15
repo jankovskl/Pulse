@@ -54,6 +54,54 @@ export function TimerProvider({ children }) {
     storeRef.current = store
   }, [store])
 
+  function fireNotification() {
+    if (!('Notification' in window)) return
+    const show = () =>
+      new Notification('Rest over', { body: 'Time to lift. Next set ready.', tag: 'pulse-rest' })
+    if (Notification.permission === 'granted') show()
+    else if (Notification.permission === 'default')
+      Notification.requestPermission().then((p) => p === 'granted' && show())
+  }
+
+  function advanceSession() {
+    const s = sessionRef.current
+    if (!s) return
+    const day = storeRef.current.days.find((d) => d.id === s.dayId)
+    if (!day || !day.exercises.length) return
+    const ex = day.exercises[s.exIdx]
+    if (ex && s.set < ex.sets) {
+      setSession({ ...s, set: s.set + 1, justCompletedId: null })
+      return
+    }
+    let justCompletedId = null
+    if (ex && !ex.done) {
+      storeRef.current.toggleExercise(s.dayId, ex.id)
+      justCompletedId = ex.id
+    }
+    let next = s.exIdx + 1
+    while (next < day.exercises.length && day.exercises[next].done) next++
+    if (next >= day.exercises.length) {
+      setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
+      return
+    }
+    setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
+    storeRef.current.setLastActiveExercise(day.exercises[next]?.name ?? null)
+  }
+
+  // Guards against completing the same countdown twice (e.g. a queued
+  // interval tick AND the visibility handler both firing on resume).
+  const finishedRef = useRef(null)
+  function completeTimer(endVal) {
+    if (finishedRef.current === endVal) return
+    finishedRef.current = endVal
+    setLeft(0)
+    setRunning(false)
+    setPaused(false)
+    setEndsAt(null)
+    advanceSession()
+    if (notify) fireNotification()
+  }
+
   useEffect(() => {
     const s = load()
     if (!s) return
@@ -67,10 +115,40 @@ export function TimerProvider({ children }) {
       setLeft(Math.ceil((s.endsAt - Date.now()) / 1000))
       setEndsAt(s.endsAt)
       setRunning(true)
+    } else if (s.running && !s.paused && typeof s.endsAt === 'number') {
+      // The timer expired while the app was suspended (phone locked, tab
+      // frozen/killed). The interval never got to fire, so finish the set
+      // now — otherwise the exercise would never flip to done.
+      completeTimer(s.endsAt)
     } else {
       setLeft(s.total)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Phones suspend JS entirely while locked/backgrounded, so the interval
+  // can't count down. The moment the page comes back to the foreground,
+  // finish any timer that expired while we were gone.
+  const timerRef = useRef({ running, paused, endsAt })
+  useEffect(() => {
+    timerRef.current = { running, paused, endsAt }
+  }, [running, paused, endsAt])
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return
+      const t = timerRef.current
+      if (!t.running || t.paused || typeof t.endsAt !== 'number') return
+      if (t.endsAt > Date.now()) return
+      completeTimer(t.endsAt)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notify])
 
   useEffect(() => {
     localStorage.setItem(TKEY, JSON.stringify({ total, left, endsAt, running, paused }))
@@ -97,11 +175,7 @@ export function TimerProvider({ children }) {
       setLeft(rem)
       if (rem <= 0) {
         clearInterval(id)
-        setRunning(false)
-        setPaused(false)
-        setEndsAt(null)
-        advanceSession()
-        if (notify) fireNotification()
+        completeTimer(endsAt)
       }
     }, 250)
     return () => clearInterval(id)
@@ -116,17 +190,9 @@ export function TimerProvider({ children }) {
     }
   }, [running, paused, left])
 
-  function fireNotification() {
-    if (!('Notification' in window)) return
-    const show = () =>
-      new Notification('Rest over', { body: 'Time to lift. Next set ready.', tag: 'pulse-rest' })
-    if (Notification.permission === 'granted') show()
-    else if (Notification.permission === 'default')
-      Notification.requestPermission().then((p) => p === 'granted' && show())
-  }
-
   function start(sec) {
     const t = sec > 0 ? sec : total
+    finishedRef.current = null
     setTotal(t)
     setLeft(t)
     setEndsAt(Date.now() + t * 1000)
@@ -191,31 +257,6 @@ export function TimerProvider({ children }) {
     setSession({ dayId, exIdx: idx, set: 1, justCompletedId: null })
     storeRef.current.setLastActiveExercise(day.exercises[idx]?.name ?? null)
   }
-
-function advanceSession() {
-  const s = sessionRef.current
-  if (!s) return
-  const day = storeRef.current.days.find((d) => d.id === s.dayId)
-  if (!day || !day.exercises.length) return
-  const ex = day.exercises[s.exIdx]
-  if (ex && s.set < ex.sets) {
-    setSession({ ...s, set: s.set + 1, justCompletedId: null })
-    return
-  }
-  let justCompletedId = null
-  if (ex && !ex.done) {
-    storeRef.current.toggleExercise(s.dayId, ex.id)
-    justCompletedId = ex.id
-  }
-   let next = s.exIdx + 1
-   while (next < day.exercises.length && day.exercises[next].done) next++
-   if (next >= day.exercises.length) {
-     setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
-     return
-   }
-   setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
-   storeRef.current.setLastActiveExercise(day.exercises[next]?.name ?? null)
- }
 
   return (
     <TimerCtx.Provider

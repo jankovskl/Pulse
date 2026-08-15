@@ -30,7 +30,7 @@ const BADGES = [
   {
     id: 'streak-3',
     label: 'On a Roll',
-    hint: 'Train 3 days in a row',
+    hint: 'Train 3 days in a row — up to 2 rest days don’t break it',
     tier: 'easy',
     test: ({ stats }) => (stats.bestStreak ?? 0) >= 3,
   },
@@ -53,7 +53,7 @@ const BADGES = [
   {
     id: 'streak-7',
     label: 'Iron Week',
-    hint: 'Train 7 days in a row',
+    hint: 'Train 7 days in a row — up to 2 rest days don’t break it',
     tier: 'medium',
     test: ({ stats }) => (stats.bestStreak ?? 0) >= 7,
   },
@@ -76,7 +76,7 @@ const BADGES = [
   {
     id: 'streak-30',
     label: 'Iron Month',
-    hint: 'Train 30 days in a row',
+    hint: 'Train 30 days in a row — up to 2 rest days don’t break it',
     tier: 'hard',
     test: ({ stats }) => (stats.bestStreak ?? 0) >= 30,
   },
@@ -113,7 +113,7 @@ const BADGES = [
   {
     id: 'streak-100',
     label: 'Unstoppable',
-    hint: 'Train 100 days in a row',
+    hint: 'Train 100 days in a row — up to 2 rest days don’t break it',
     tier: 'legendary',
     test: ({ stats }) => (stats.bestStreak ?? 0) >= 100,
   },

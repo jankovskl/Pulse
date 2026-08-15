@@ -1,5 +1,16 @@
 # Pulse Changelog
 
+## 2.2.0 — 2026-08-15
+- New Calendar screen: plan workouts per date and browse your month-by-month history
+- Streaks now weather up to 2 rest days — a missed day no longer resets your chain
+- Progress overhaul: exercise picker is now a searchable list of lifts you've actually logged
+- "Limited" weights are explained — tap the chip to see the exact progression rule that capped a lift
+- Charts show a ghost line for the weight you entered when the guard capped it
+- Avatar cropping: pan, zoom and rotate your picture before uploading
+- iPhone HEIC/HEIF photos are converted automatically before upload
+- Profile lifts are searchable, with the top 5 shown at a glance
+- Fixes: the rest timer now finishes even if the app was locked or in the background, and the last exercise of a day reaches the leaderboard
+
 ## 2.1.0 — 2026-08-15
 - Public profiles: tap any leaderboard entry to preview a player's bio, badges, widgets and lifts
 - Profile customization: set a nickname, bio, avatar, widgets and avatar decorations in Settings

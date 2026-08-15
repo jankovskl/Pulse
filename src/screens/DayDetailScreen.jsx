@@ -87,7 +87,6 @@ export default function DayDetailScreen() {
 
   const done = day.exercises.filter((e) => e.done).length
   const pct = day.exercises.length ? Math.round((done / day.exercises.length) * 100) : 0
-  const estMin = day.exercises.reduce((n, e) => n + e.sets * 45 + 30, 0) / 60
 
   function move(from, to) {
     const list = [...day.exercises]
@@ -122,8 +121,7 @@ export default function DayDetailScreen() {
           <div className="flex flex-1 flex-col gap-0">
             <h1 className="text-[22px] font-semibold capitalize text-soft">{day.name}</h1>
             <span className="text-[13px] text-muted">
-              {day.weekday === 1 ? 'Monday' : day.weekday === 3 ? 'Wednesday' : day.weekday === 5 ? 'Friday' : `Day ${day.weekday}`}{' '}
-              · est. {Math.max(1, Math.round(estMin))} min
+              {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}
             </span>
           </div>
         </div>
@@ -132,8 +130,7 @@ export default function DayDetailScreen() {
           <div className="flex items-center justify-between">
             <span className="text-[16px] font-bold text-soft">Today's session</span>
             <span className="text-[12px] text-sub">
-              {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'} · est.{' '}
-              {Math.max(1, Math.round(estMin))} min
+              {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}
             </span>
           </div>
           <div>

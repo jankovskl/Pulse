@@ -78,3 +78,5 @@ export const WEEKDAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 export const DAY_COLORS = { push: '#0485F7', pull: '#17C964', legs: '#F5A524', rest: '#71717A' }
 export const dateKey = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+export const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1)

@@ -11,6 +11,7 @@ import TimerScreen from './screens/TimerScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import LeaderboardScreen from './screens/LeaderboardScreen'
+import CalendarScreen from './screens/CalendarScreen'
 
 function Router() {
   const nav = useNav()
@@ -27,6 +28,8 @@ function Router() {
       return <SettingsScreen />
     case 'leaderboard':
       return <LeaderboardScreen />
+    case 'calendar':
+      return <CalendarScreen />
     case 'home':
     default:
       return <HomeScreen />

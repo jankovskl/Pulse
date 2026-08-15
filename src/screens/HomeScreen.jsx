@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Activity, CircleCheck, MoonStar, Plus, Trash2, X } from 'lucide-react'
+import { Activity, CalendarDays, MoonStar, Plus, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
-import { dateKey, DAY_COLORS, WEEKDAY_NAMES } from '../lib/data'
+import { dateKey, WEEKDAY_NAMES } from '../lib/data'
 import { Chip, Modal, Screen, useNav } from '../components/ui'
+import { PlanDayPicker } from '../components/Calendar'
 
 function weekOf(today) {
   const monday = new Date(today)
@@ -15,11 +16,9 @@ function weekOf(today) {
   })
 }
 
-function DayTile({ date, marker, today, onOpen, planned }) {
-  const labels = ['push', 'pull', 'legs', 'rest']
-  const colors = { push: DAY_COLORS.push, pull: DAY_COLORS.pull, legs: DAY_COLORS.legs, rest: 'var(--color-muted)' }
+function DayTile({ date, today, onOpen, planned }) {
   const isToday = date.toDateString() === today.toDateString()
-  const color = planned ? planned.color : (colors[marker] ?? 'var(--color-muted)')
+  const color = planned ? planned.color : 'var(--color-muted)'
   return (
     <button
       onClick={onOpen}
@@ -53,19 +52,9 @@ export default function HomeScreen() {
   const days = store.days
 
   const week = useMemo(() => weekOf(today), [])
-  const markers = useMemo(() => {
-    const map = {}
-    for (const d of days) {
-      if (!d.weekday) continue
-      const idx = (d.weekday + 6) % 7
-      map[idx] = d.color === DAY_COLORS.push ? 'push' : d.color === DAY_COLORS.pull ? 'pull' : 'legs'
-    }
-    return map
-  }, [days])
 
   const totalExercises = days.reduce((n, d) => n + d.exercises.length, 0)
   const trainingDays = days.filter((d) => d.exercises.length > 0)
-  const restWeekdays = WEEKDAY_NAMES.filter((_, i) => !markers[i]).map((n) => n.slice(0, 3))
 
   const weekStart = week[0]
   const weekEnd = week[6]
@@ -76,12 +65,16 @@ export default function HomeScreen() {
   const planDay = (date) =>
     days.find((d) => d.id === store.plan[dateKey(date)]) ?? null
 
-  const estMin = (d) =>
-    Math.max(1, Math.round(d.exercises.reduce((n, e) => n + e.sets * 45 + 30, 0) / 60))
+  // Rest days = weekdays this week with no planned workout.
+  const restWeekdays = week
+    .filter((date) => !planDay(date))
+    .map((date) => WEEKDAY_NAMES[(date.getDay() + 6) % 7].slice(0, 3))
 
   function createDay() {
     if (!name.trim()) return
-    store.addDay(name.trim(), 0)
+    // weekday stays null — days are scheduled per-date via the calendar,
+    // not pinned to a recurring weekday (0 would mean "every Sunday").
+    store.addDay(name.trim(), null)
     setCreating(false)
     setName('')
   }
@@ -107,7 +100,17 @@ export default function HomeScreen() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-semibold text-soft">This Week</span>
-            <span className="text-[12px] text-muted">{dateRange}</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12px] text-muted">{dateRange}</span>
+              <button
+                onClick={() => nav.go('calendar')}
+                className="flex items-center gap-1.5 rounded-[24px] bg-tile px-3 py-1.5"
+                title="Open full calendar"
+              >
+                <CalendarDays size={13} color="var(--color-accent)" />
+                <span className="text-[12px] font-medium text-soft">Calendar</span>
+              </button>
+            </div>
           </div>
           <div className="flex h-[88px] gap-1.5 md:h-[110px] md:grid md:grid-cols-7 md:gap-2">
             {week.map((date) => (
@@ -115,7 +118,6 @@ export default function HomeScreen() {
                 key={date.toISOString()}
                 date={date}
                 today={today}
-                marker={markers[(date.getDay() + 6) % 7]}
                 planned={planDay(date)}
                 onOpen={() => setPickDate(date)}
               />
@@ -226,84 +228,16 @@ export default function HomeScreen() {
         </div>
       </Modal>
 
-      {pickDate && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
-          onClick={() => setPickDate(null)}
-        >
-          <div
-            className="flex w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[16px] font-semibold text-soft">
-                  {pickDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
-                <span className="text-[12px] text-muted">Pick what you'll train that day</span>
-              </div>
-              <button
-                onClick={() => setPickDate(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
-              >
-                <X size={15} color="var(--color-sub)" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-2">
-              {days.map((d) => {
-                const active = store.plan[dateKey(pickDate)] === d.id
-                const cap = d.name.replace(/^./, (c) => c.toUpperCase())
-                return (
-                  <button
-                    key={d.id}
-                    onClick={() => {
-                      store.setPlan(dateKey(pickDate), d.id)
-                      setPickDate(null)
-                    }}
-                    className={`flex items-center gap-3 rounded-[18px] p-3.5 text-left transition-colors ${
-                      active ? 'bg-accent/10 outline outline-1 outline-accent/30' : 'bg-tile'
-                    }`}
-                  >
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ background: d.color }}
-                    />
-                    <span className="flex flex-1 flex-col gap-0.5">
-                      <span className="text-[14px] font-semibold text-soft">{cap}</span>
-                      <span className="text-[12px] text-muted">
-                        {d.exercises.length} exercises · ~{estMin(d)} min
-                      </span>
-                    </span>
-                    {active && <CircleCheck size={18} color="var(--color-accent)" />}
-                  </button>
-                )
-              })}
-              <button
-                onClick={() => {
-                  store.setPlan(dateKey(pickDate), null)
-                  setPickDate(null)
-                }}
-                className={`flex items-center gap-3 rounded-[18px] p-3.5 text-left transition-colors ${
-                  !store.plan[dateKey(pickDate)] ? 'bg-tile' : 'bg-card'
-                }`}
-              >
-                <MoonStar size={14} color="var(--color-muted)" />
-                <span className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-[14px] font-semibold text-soft">Rest day</span>
-                  <span className="text-[12px] text-muted">No workout — recovery is training too</span>
-                </span>
-                {!store.plan[dateKey(pickDate)] && (
-                  <CircleCheck size={18} color="var(--color-accent)" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PlanDayPicker
+        date={pickDate}
+        days={days}
+        currentId={pickDate ? store.plan[dateKey(pickDate)] ?? null : null}
+        onPick={(dayId) => {
+          if (pickDate) store.setPlan(dateKey(pickDate), dayId)
+          setPickDate(null)
+        }}
+        onClose={() => setPickDate(null)}
+      />
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">

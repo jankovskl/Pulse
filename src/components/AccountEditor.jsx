@@ -4,6 +4,21 @@ import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { uploadAvatar, removeAvatar } from '../lib/profile'
 import { Avatar, initialsOf } from './ui'
+import AvatarCropper from './AvatarCropper'
+
+// Decodes formats the browser can't draw natively (HEIC/HEIF from iPhones)
+// into a JPEG blob; everything else passes through untouched. heic2any is
+// loaded lazily so it only costs bandwidth when actually needed.
+async function normalizeImage(file) {
+  const name = (file.name || '').toLowerCase()
+  const isHeic = /heic|heif/i.test(file.type || '') || name.endsWith('.heic') || name.endsWith('.heif')
+  if (isHeic) {
+    const heic2any = (await import('heic2any')).default
+    const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 })
+    return Array.isArray(out) ? out[0] : out
+  }
+  return file
+}
 
 // Account editor: avatar, nickname and password. Shared by the Settings
 // "Customize profile" view and the Auth modal. Requires a signed-in user.
@@ -17,6 +32,7 @@ export default function AccountEditor() {
   const [pfpError, setPfpError] = useState(null)
   const [pfpRemoveBusy, setPfpRemoveBusy] = useState(false)
   const [pfpMenuOpen, setPfpMenuOpen] = useState(false)
+  const [cropSrc, setCropSrc] = useState(null)
   const [showPw, setShowPw] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -35,10 +51,29 @@ export default function AccountEditor() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    setPfpError(null)
+    try {
+      const blob = await normalizeImage(file)
+      setCropSrc((old) => {
+        if (old) URL.revokeObjectURL(old)
+        return URL.createObjectURL(blob)
+      })
+    } catch {
+      setPfpError('Could not read that image — try a different format.')
+    }
+  }
+
+  function closeCrop() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+
+  async function onCropConfirm(blob) {
+    closeCrop()
     setPfpBusy(true)
     setPfpError(null)
     try {
-      const url = await uploadAvatar(supabase, auth.user.id, file)
+      const url = await uploadAvatar(supabase, auth.user.id, blob)
       await auth.updateProfile({ pfp: url })
     } catch (err) {
       setPfpError(err.message || 'Upload failed.')
@@ -154,7 +189,13 @@ export default function AccountEditor() {
         </div>
       </div>
 
-      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.heic,.heif"
+        hidden
+        onChange={onFile}
+      />
 
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] font-semibold tracking-[1px] text-muted">NICKNAME</span>
@@ -244,6 +285,15 @@ export default function AccountEditor() {
       </div>
 
       {pfpError && <span className="text-[12px] text-[#FF7A7D]">{pfpError}</span>}
+
+      {cropSrc && (
+        <AvatarCropper
+          src={cropSrc}
+          busy={pfpBusy}
+          onConfirm={onCropConfirm}
+          onCancel={closeCrop}
+        />
+      )}
     </div>
   )
 }

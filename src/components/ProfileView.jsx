@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ChevronRight, Dumbbell, Flame, ShieldCheck, Trophy, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronRight, Dumbbell, Flame, Search, ShieldCheck, Trophy, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { fetchFullProfile } from '../lib/profile'
 import { fetchUserLifts, fetchLiftRanks, buildPlayerExerciseList } from '../lib/leaderboard'
@@ -22,8 +22,10 @@ const WIDGET_DESCRIBE = {
   best: (s, you) => `${you ? 'Your' : "This athlete's"} heaviest lift is ${s.best ?? 0} kg`,
   sessions: (s, you) =>
     `${you ? 'You' : 'This athlete'} finished ${s.sessions ?? 0} workout ${(s.sessions ?? 0) === 1 ? 'day' : 'days'}`,
-  streak: (s, you) =>
-    `${you ? 'You' : 'This athlete'} trained ${(s.streak ?? 0) === 1 ? '1 day' : `${s.streak ?? 0} days`} in a row`,
+  streak: (s, you) => {
+    const n = s.streak ?? 0
+    return `${you ? 'You' : 'This athlete'} kept a streak of ${n} training ${n === 1 ? 'day' : 'days'} going — up to 2 rest days don't break it`
+  },
 }
 
 // Stat tile with an icon and a hover/tap tooltip explaining the number.
@@ -71,6 +73,11 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [lifts, setLifts] = useState(null)
+  const [liftQuery, setLiftQuery] = useState('')
+
+  useEffect(() => {
+    setLiftQuery('')
+  }, [user?.user_id])
 
   useEffect(() => {
     if (!supabase || !user?.user_id) {
@@ -104,6 +111,14 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
   }, [user?.user_id])
 
   const stats = profile?.stats ?? {}
+  // Lifts are searched instead of dumped as one long list: the input
+  // filters them, and without a query only the top 5 are shown.
+  const liftMatches = useMemo(() => {
+    const list = lifts ?? []
+    const q = liftQuery.trim().toLowerCase()
+    const filtered = q ? list.filter((r) => r.exercise.toLowerCase().includes(q)) : list
+    return filtered.slice(0, 5)
+  }, [lifts, liftQuery])
   const badges = computeBadges({ stats, isAdmin: !!profile?.is_admin })
   const adminBadge = badges.find((b) => b.id === 'admin')
   const topAchievements = [...badges.filter((b) => b.id !== 'admin')]
@@ -131,7 +146,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
               decoration={equipped}
               initials={initialsOf(nickname)}
               color="#3B3B47"
-              size={56}
+              size={72}
               src={profile?.pfp ?? user?.pfp ?? null}
             />
             <div className="flex flex-1 flex-col gap-1 pt-1">
@@ -206,28 +221,54 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
               </div>
             )}
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-semibold tracking-[1.4px] text-muted">LIFTS</span>
               {lifts === null || lifts.length === 0 ? (
                 <span className="py-2 text-[12px] text-faint">This athlete has no lifts yet.</span>
               ) : (
-                lifts.map((r) => (
-                  <button
-                    key={r.exercise}
-                    disabled={!onPickExercise}
-                    onClick={() => onPickExercise?.(r.exercise)}
-                    className="flex items-center gap-3 rounded-[16px] bg-surface px-3.5 py-3 text-left outline outline-1 outline-line/10 disabled:cursor-default"
-                  >
-                    <div className="flex flex-1 flex-col">
-                      <span className="text-[14px] font-medium text-soft">{r.exercise}</span>
-                      <span className="text-[11px] text-muted">{r.weight} kg</span>
-                    </div>
-                    <span className="text-[13px] font-semibold text-soft">
-                      {r.rank <= 3 ? (r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉') : `#${r.rank}`}
+                <>
+                  <div className="relative">
+                    <Search
+                      size={14}
+                      color="var(--color-faint)"
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                    />
+                    <input
+                      value={liftQuery}
+                      onChange={(e) => setLiftQuery(e.target.value)}
+                      placeholder="Search exercise…"
+                      className="h-9 w-full rounded-[12px] bg-surface pl-9 pr-3 text-[13px] text-ink placeholder:text-faint outline outline-1 outline-line/10 focus:outline-accent/50"
+                    />
+                  </div>
+                  {liftMatches.length === 0 ? (
+                    <span className="py-2 text-[12px] text-faint">
+                      No lifts match “{liftQuery.trim()}”.
                     </span>
-                    {onPickExercise && <ChevronRight size={16} color="var(--color-faint)" />}
-                  </button>
-                ))
+                  ) : (
+                    liftMatches.map((r) => (
+                      <button
+                        key={r.exercise}
+                        disabled={!onPickExercise}
+                        onClick={() => onPickExercise?.(r.exercise)}
+                        className="flex items-center gap-3 rounded-[16px] bg-surface px-3.5 py-3 text-left outline outline-1 outline-line/10 disabled:cursor-default"
+                      >
+                        <div className="flex flex-1 flex-col">
+                          <span className="text-[14px] font-medium text-soft">{r.exercise}</span>
+                          <span className="text-[11px] text-muted">{r.weight} kg</span>
+                        </div>
+                        <span className="text-[13px] font-semibold text-soft">
+                          {r.rank <= 3 ? (r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉') : `#${r.rank}`}
+                        </span>
+                        {onPickExercise && <ChevronRight size={16} color="var(--color-faint)" />}
+                      </button>
+                    ))
+                  )}
+                  {!liftQuery.trim() && lifts.length > 5 && (
+                    <span className="text-center text-[11px] text-faint">
+                      Top 5 shown — search to find the rest
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </>

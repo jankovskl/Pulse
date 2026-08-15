@@ -38,7 +38,12 @@ const DEFAULT = {
 function normalize(raw) {
   const sessions = raw.sessions ?? DEFAULT.sessions
   return {
-    days: raw.days ?? DEFAULT.days,
+    // Legacy: addDay used to pin every new day to weekday 0 (= "every
+    // Sunday"), painting phantom dots on the calendar. There was never a UI
+    // to choose a weekday, so wipe the field — scheduling is date-based now.
+    days: (raw.days ?? DEFAULT.days).map((d) =>
+      d.weekday == null ? d : { ...d, weekday: null },
+    ),
     sessions,
     plan: raw.plan ?? {},
     settings: { ...DEFAULT.settings, ...(raw.settings ?? {}) },
@@ -284,7 +289,25 @@ export function StoreProvider({ children }) {
       },
 
       toggleExercise(dayId, exId) {
-        let fresh = []
+        const now = new Date()
+        const full = now.toISOString().slice(0, 10)
+        // Derive the lift to push from the latest committed state BEFORE the
+        // state update. React may defer a setState updater until the next
+        // render, so side effects inside it can silently never run — that
+        // made the last exercise of a day never reach the leaderboard.
+        const snap = stateRef.current
+        const snapDay = snap.days.find((d) => d.id === dayId)
+        const snapEx = snapDay?.exercises.find((e) => e.id === exId)
+        let lift = null
+        if (snapDay && snapEx && !snapEx.done) {
+          const prevBest = Math.max(
+            0,
+            ...snap.sessions
+              .filter((x) => x.exercise === snapEx.name && x.full !== full)
+              .map((x) => x.weight ?? 0),
+          )
+          lift = { exercise: snapEx.name, weight: clampWeight(snapEx.weight, prevBest, snapEx.name) }
+        }
         setState((s) => {
           const day = s.days.find((d) => d.id === dayId)
           if (!day) return s
@@ -304,13 +327,11 @@ export function StoreProvider({ children }) {
               : d,
           )
 
-          const now = new Date()
           const dateStr = now.toLocaleDateString('en-US', {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
           })
-          const full = now.toISOString().slice(0, 10)
 
           let sessions = s.sessions
           let totals = s.totals
@@ -333,7 +354,9 @@ export function StoreProvider({ children }) {
               reps: ex.reps,
               weight,
               pr: weight >= prevBest && weight > 0,
-              ...(weight < ex.weight ? { capped: true } : {}),
+              // Keep what was actually typed so the Progress screen can show
+              // the ghost line + explain the limit in a popup.
+              ...(weight < ex.weight ? { capped: true, entered: ex.weight } : {}),
             }
             // A "session" is a whole workout day: only the first completed
             // exercise of a day bumps the lifetime counter. `lastSessionDay`
@@ -346,13 +369,12 @@ export function StoreProvider({ children }) {
             sessions = sessions
               .filter((x) => !(x.exercise === ex.name && x.full === full))
               .slice(0, 59)
-            fresh = [newSession]
             sessions = [newSession, ...sessions].slice(0, 60)
           }
 
           return { ...s, days, sessions, totals }
         })
-        if (fresh.length) fresh.forEach((f) => recordLift(f.exercise, f.weight))
+        if (lift) recordLift(lift.exercise, lift.weight)
       },
 
       patchExercise(dayId, exId, patch) {

@@ -83,31 +83,48 @@ export async function searchProfiles(supabase, query, limit = 8) {
   return data ?? []
 }
 
-// Longest run of consecutive calendar days containing a session.
+// Nobody trains every single day: up to REST_GRACE_DAYS consecutive rest
+// days keep the chain alive. Streaks still count only actual training days,
+// so a streak can never exceed the session count (the server relies on that).
+const REST_GRACE_DAYS = 2
+const DAY_MS = 86400000
+
+// Longest chain of training days where gaps of at most REST_GRACE_DAYS + 1
+// calendar days don't break the run.
 export function bestStreakOf(dates) {
   const days = [...new Set(dates)].sort()
+  const maxGap = (REST_GRACE_DAYS + 1) * DAY_MS
   let best = 0
   let run = 0
   let prev = null
   for (const d of days) {
     const t = Date.parse(d)
-    run = prev !== null && t - prev === 86400000 ? run + 1 : 1
+    run = prev !== null && t - prev <= maxGap ? run + 1 : 1
     if (run > best) best = run
     prev = t
   }
   return best
 }
 
-// Current streak: consecutive days ending today or yesterday.
+// Current streak: chain of training days ending today or yesterday, walking
+// back through at most REST_GRACE_DAYS rest days between workouts.
 export function currentStreakOf(dates, today = new Date()) {
   const set = new Set(dates)
   const iso = (d) => d.toISOString().slice(0, 10)
   const cursor = new Date(today)
   if (!set.has(iso(cursor))) cursor.setUTCDate(cursor.getUTCDate() - 1)
   let streak = 0
-  while (set.has(iso(cursor))) {
-    streak += 1
-    cursor.setUTCDate(cursor.getUTCDate() - 1)
+  let rest = 0
+  while (rest <= REST_GRACE_DAYS) {
+    if (set.has(iso(cursor))) {
+      streak += 1
+      rest = 0
+      cursor.setUTCDate(cursor.getUTCDate() - 1)
+    } else {
+      // Potential rest day — only kept if training resumes within the grace.
+      rest += 1
+      cursor.setUTCDate(cursor.getUTCDate() - 1)
+    }
   }
   return streak
 }

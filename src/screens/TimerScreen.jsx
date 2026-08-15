@@ -15,12 +15,10 @@ export default function TimerScreen() {
     if (nav.dayId && session?.dayId !== nav.dayId) setDay(nav.dayId)
   }, [nav.dayId, session, setDay])
 
-  const todayIdx = (new Date().getDay() + 6) % 7
-  const scheduledDay = store.days.find((d) => d.weekday && (d.weekday + 6) % 7 === todayIdx)
   const plannedDay =
     store.days.find((d) => d.id === store.plan[dateKey(new Date())]) ?? null
   const sessionDay = session ? store.days.find((d) => d.id === session?.dayId) : null
-  const day = sessionDay ?? plannedDay ?? scheduledDay
+  const day = sessionDay ?? plannedDay
   const allDone = !!day && !!session && session.exIdx >= day.exercises.length
   const raw = day?.exercises[session?.exIdx]
   const ex = raw && !raw.done ? raw : day?.exercises.find((e) => !e.done)
