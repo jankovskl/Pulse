@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowDown,
+  ArrowUp,
   Cat,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Cloud,
@@ -9,12 +12,13 @@ import {
   CloudOff,
   Database,
   Download,
+  Lock,
   Palette,
   Pencil,
   Rocket,
+  Sparkles,
   Trash2,
   Upload,
-  User,
   X,
 } from 'lucide-react'
 import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
@@ -23,8 +27,22 @@ import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
 import { isSupabaseEnabled, supabase } from '../lib/supabase'
 import { THEMES as THEME_PRESETS, themeById } from '../lib/themes'
+import {
+  ACHIEVEMENTS,
+  computeBadges,
+  badgeById,
+  DECORATIONS,
+  DECORATION_TYPES,
+  DEFAULT_WIDGETS,
+  hasBadge,
+  isDecorationUnlocked,
+  TIERS,
+  WIDGETS,
+} from '../lib/badges'
+import { deriveStats, fetchFullProfile, saveProfile } from '../lib/profile'
 import AuthModal from '../components/AuthModal'
-import { Avatar, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
+import AccountEditor from '../components/AccountEditor'
+import { Avatar, DecoratedAvatar, DecorationTitle, DECORATION_FRAMES, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#A855F7', '#FF383C', '#0485F7']
 
@@ -86,6 +104,67 @@ export default function SettingsScreen() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const [view, setView] = useState('main')
+  const [myProfile, setMyProfile] = useState(null)
+  const [bio, setBio] = useState('')
+  const [widgets, setWidgets] = useState(DEFAULT_WIDGETS)
+  const [decoration, setDecoration] = useState('none')
+  const [achievementsOpen, setAchievementsOpen] = useState(true)
+
+  // Badges are computed from local (unpublished) stats so unlocks react to
+  // fresh workouts immediately, not only after the next cloud push.
+  const myBadges = useMemo(
+    () =>
+      computeBadges({
+        stats: deriveStats({ sessions: store.sessions, totals: store.totals }),
+        isAdmin: !!myProfile?.is_admin,
+      }),
+    [store.sessions, store.totals, myProfile?.is_admin],
+  )
+
+  // Load the full profile row whenever the profile editor opens.
+  useEffect(() => {
+    if (view !== 'profile' || !supabase || !auth.user) return
+    let active = true
+    fetchFullProfile(supabase, auth.user.id)
+      .then((p) => {
+        if (!active) return
+        setMyProfile(p)
+        setBio(p?.bio ?? '')
+        setWidgets(p?.widgets?.length ? p.widgets : DEFAULT_WIDGETS)
+        setDecoration(p?.decoration ?? 'none')
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [view, auth.user])
+
+  function saveProfilePatch(patch) {
+    if (!supabase || !auth.user) return
+    saveProfile(supabase, auth.user.id, patch).catch(() => {})
+  }
+
+  function toggleWidget(id) {
+    const next = widgets.includes(id) ? widgets.filter((w) => w !== id) : [...widgets, id]
+    setWidgets(next)
+    saveProfilePatch({ widgets: next })
+  }
+
+  function moveWidget(id, dir) {
+    const i = widgets.indexOf(id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= widgets.length) return
+    const next = [...widgets]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    setWidgets(next)
+    saveProfilePatch({ widgets: next })
+  }
+
+  function pickDecoration(id) {
+    if (!isDecorationUnlocked(myBadges, id)) return
+    setDecoration(id)
+    saveProfilePatch({ decoration: id })
+  }
 
   useEffect(() => {
     const on = () => setOnline(true)
@@ -187,7 +266,216 @@ export default function SettingsScreen() {
 
   return (
     <Screen activeTab="settings">
-      {view === 'appearance' ? (
+      {view === 'profile' ? (
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView('main')}
+              aria-label="Back"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-tile"
+            >
+              <ChevronLeft size={16} color="var(--color-sub)" />
+            </button>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-[26px] font-bold text-ink">Profile</h1>
+              <span className="text-[12px] text-faint">Account, bio, widgets & decoration</span>
+            </div>
+          </div>
+
+          {!auth.user ? (
+            <div className="flex flex-col items-center gap-2.5 rounded-[20px] bg-surface p-6 text-center outline outline-1 outline-line/10">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                <Lock size={16} color="var(--color-accent)" />
+              </div>
+              <span className="text-[13px] font-semibold text-ink">Sign in to customize your profile</span>
+              <span className="text-[12px] text-faint">Your bio, widgets and decoration are shared publicly</span>
+              <button
+                onClick={authDialog.openDialog}
+                className="mt-1 h-9 rounded-[12px] bg-accent px-4 text-[13px] font-semibold text-white"
+              >
+                Sign in
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+                <span className="text-[14px] font-semibold text-ink">Account</span>
+                <AccountEditor />
+              </div>
+
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+                <span className="text-[14px] font-semibold text-ink">Bio</span>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  maxLength={160}
+                  rows={3}
+                  placeholder="Tell other athletes about yourself…"
+                  className="w-full resize-none rounded-[12px] bg-field px-3 py-2.5 text-[13px] text-ink outline outline-1 outline-line/10 placeholder:text-faint"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] tabular-nums text-faint">{bio.length}/160</span>
+                  <button
+                    onClick={() => saveProfilePatch({ bio })}
+                    disabled={bio === (myProfile?.bio ?? '')}
+                    className="h-8 rounded-[10px] bg-accent px-3.5 text-[12px] font-semibold text-white disabled:opacity-40"
+                  >
+                    Save bio
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-ink">Profile widgets</span>
+                  <span className="text-[11px] text-faint">Pick the stats shown on your public profile, in order</span>
+                </div>
+                {WIDGETS.map((w) => {
+                  const on = widgets.includes(w.id)
+                  const idx = widgets.indexOf(w.id)
+                  return (
+                    <div key={w.id} className="flex items-center gap-2.5 rounded-[14px] bg-card px-3 py-2.5">
+                      <span className={`flex-1 text-[13px] ${on ? 'font-medium text-ink' : 'text-faint'}`}>
+                        {w.label}
+                      </span>
+                      {on && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => moveWidget(w.id, -1)}
+                            disabled={idx === 0}
+                            aria-label={`Move ${w.label} up`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-tile disabled:opacity-30"
+                          >
+                            <ArrowUp size={13} color="var(--color-sub)" />
+                          </button>
+                          <button
+                            onClick={() => moveWidget(w.id, 1)}
+                            disabled={idx === widgets.length - 1}
+                            aria-label={`Move ${w.label} down`}
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-tile disabled:opacity-30"
+                          >
+                            <ArrowDown size={13} color="var(--color-sub)" />
+                          </button>
+                        </div>
+                      )}
+                      <Toggle on={on} onChange={() => toggleWidget(w.id)} />
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-ink">Decorations</span>
+                  <span className="text-[11px] text-faint">Rings, accessories, titles and profile frames — unlocked by achievements</span>
+                </div>
+                {DECORATION_TYPES.map(({ type, label }) => (
+                  <div key={type} className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-semibold tracking-[1.4px] text-muted">{label.toUpperCase()}</span>
+                    <div className={`grid gap-2 ${type === 'frame' || type === 'title' ? 'grid-cols-3' : 'grid-cols-3 md:grid-cols-5'}`}>
+                      {DECORATIONS.filter((d) => d.type === type).map((d) => {
+                        const unlocked = isDecorationUnlocked(myBadges, d.id)
+                        const active = decoration === d.id
+                        const required = d.requires ? badgeById(d.requires) : null
+                        return (
+                          <button
+                            key={d.id}
+                            onClick={() => pickDecoration(d.id)}
+                            aria-pressed={active}
+                            className={`flex flex-col items-center gap-1.5 rounded-[14px] p-3 outline outline-1 transition-transform active:scale-[0.97] ${
+                              active ? 'outline-2 outline-accent' : 'outline-line/10'
+                            } ${unlocked ? '' : 'opacity-60'}`}
+                          >
+                            {type === 'frame' ? (
+                              <div
+                                className="h-9 w-full rounded-[10px] outline outline-1 outline-line/10"
+                                style={DECORATION_FRAMES[d.id]}
+                              />
+                            ) : type === 'title' ? (
+                              <div className="flex h-9 w-full items-center justify-center rounded-[10px] bg-card outline outline-1 outline-line/10">
+                                <DecorationTitle decoration={d.id} size="text-[9px]" />
+                              </div>
+                            ) : (
+                              <DecoratedAvatar
+                                decoration={d.id === 'none' ? null : d.id}
+                                initials={initialsOf(auth.profile?.nickname || auth.user.email || 'You')}
+                                color="#3B3B47"
+                                size={36}
+                                src={auth.profile?.pfp || null}
+                              />
+                            )}
+                            <span className="text-center text-[10px] font-medium text-sub">{d.label}</span>
+                            {!unlocked && required && (
+                              <span className="flex items-center gap-0.5 text-[9px] text-faint">
+                                <Lock size={8} color="var(--color-faint)" />
+                                {required.label}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+                <button
+                  onClick={() => setAchievementsOpen((v) => !v)}
+                  aria-expanded={achievementsOpen}
+                  className="flex w-full items-center justify-between gap-2"
+                >
+                  <div className="flex flex-col gap-0.5 text-left">
+                    <span className="text-[14px] font-semibold text-ink">Achievements</span>
+                    <span className="text-[11px] text-faint">
+                      {myBadges.filter((b) => b.id !== 'admin').length}/{ACHIEVEMENTS.length} earned — they unlock decorations
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    color="var(--color-muted)"
+                    className={`shrink-0 transition-transform ${achievementsOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {achievementsOpen && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {ACHIEVEMENTS.map((a) => {
+                      const earned = hasBadge(myBadges, a.id)
+                      const tier = TIERS[a.tier]
+                      return (
+                        <div
+                          key={a.id}
+                          className={`flex flex-col gap-1 rounded-[14px] bg-card px-3 py-2.5 outline outline-1 outline-line/10 ${
+                            earned ? '' : 'opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`truncate text-[12px] ${earned ? 'font-semibold text-ink' : 'text-faint'}`}>
+                              {a.label}
+                            </span>
+                            {earned ? (
+                              <Check size={13} color={tier.color} className="shrink-0" />
+                            ) : (
+                              <Lock size={11} color="var(--color-faint)" className="shrink-0" />
+                            )}
+                          </div>
+                          <span className="text-[10px] leading-snug text-faint">{a.hint}</span>
+                          <span
+                            className="mt-0.5 text-[8px] font-bold uppercase tracking-[1px]"
+                            style={{ color: earned ? tier.color : 'var(--color-faint)' }}
+                          >
+                            {tier.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ) : view === 'appearance' ? (
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <button
@@ -278,7 +566,7 @@ export default function SettingsScreen() {
             ) : (
               <>
                 <span className="text-[15px] font-semibold text-ink">Not signed in</span>
-                <span className="text-[12px] text-faint">Tap Account to sync across devices</span>
+                <span className="text-[12px] text-faint">Sign in under Customize profile to sync across devices</span>
               </>
             )}
           </div>
@@ -300,13 +588,17 @@ export default function SettingsScreen() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">DATA & ACCOUNT</div>
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">PROFILE</div>
           <Row
-            icon={<User size={15} color="var(--color-accent)" />}
-            title={auth.user ? 'Account settings' : 'Account'}
-            subtitle={auth.user ? auth.user.email : 'Sign in to sync your data'}
-            onClick={authDialog.openDialog}
+            icon={<Sparkles size={15} color="var(--color-accent)" />}
+            title="Customize profile"
+            subtitle="Account, bio, widgets & avatar decoration"
+            onClick={() => setView('profile')}
           />
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">DATA</div>
           <Row
             icon={
               !isSupabaseEnabled ? (

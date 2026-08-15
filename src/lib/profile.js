@@ -1,6 +1,8 @@
 // Profile + avatar storage helpers. Kept Supabase-free at the call sites so
 // the pure parts (fetchProfile / buildRows mapping) stay unit-testable.
 
+import { muscleGroupFor } from './integrity'
+
 export async function fetchProfile(supabase, userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -37,17 +39,33 @@ export async function removeAvatar(supabase, userId) {
   if (error) throw error
 }
 
+// Full public profile row, used by the profile preview.
+export async function fetchFullProfile(supabase, userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, nickname, pfp, bio, decoration, widgets, stats, is_admin')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return data || null
+}
+
 // Fetch a map of userId -> { nickname, pfp } for the given ids. Public read.
 export async function fetchProfiles(supabase, userIds) {
   if (!userIds?.length) return {}
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, nickname, pfp')
+    .select('user_id, nickname, pfp, decoration, is_admin')
     .in('user_id', userIds)
   if (error) throw error
   const map = {}
   for (const row of data ?? []) {
-    map[row.user_id] = { nickname: row.nickname, pfp: row.pfp }
+    map[row.user_id] = {
+      nickname: row.nickname,
+      pfp: row.pfp,
+      decoration: row.decoration ?? null,
+      isAdmin: !!row.is_admin,
+    }
   }
   return map
 }
@@ -57,9 +75,84 @@ export async function fetchProfiles(supabase, userIds) {
 export async function searchProfiles(supabase, query, limit = 8) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, nickname, pfp')
+    .select('user_id, nickname, pfp, decoration')
     .ilike('nickname', `%${query}%`)
     .limit(limit)
   if (error) throw error
   return data ?? []
+}
+
+// Longest run of consecutive calendar days containing a session.
+export function bestStreakOf(dates) {
+  const days = [...new Set(dates)].sort()
+  let best = 0
+  let run = 0
+  let prev = null
+  for (const d of days) {
+    const t = Date.parse(d)
+    run = prev !== null && t - prev === 86400000 ? run + 1 : 1
+    if (run > best) best = run
+    prev = t
+  }
+  return best
+}
+
+// Current streak: consecutive days ending today or yesterday.
+export function currentStreakOf(dates, today = new Date()) {
+  const set = new Set(dates)
+  const iso = (d) => d.toISOString().slice(0, 10)
+  const cursor = new Date(today)
+  if (!set.has(iso(cursor))) cursor.setUTCDate(cursor.getUTCDate() - 1)
+  let streak = 0
+  while (set.has(iso(cursor))) {
+    streak += 1
+    cursor.setUTCDate(cursor.getUTCDate() - 1)
+  }
+  return streak
+}
+
+// Derive the public stats blob from local state (pure, unit-testable).
+export function deriveStats(state) {
+  const sessions = state?.sessions ?? []
+  const dates = sessions.map((s) => s.full).filter(Boolean)
+  // Best lift per muscle group (excluding "other") — powers the group
+  // achievements and lets the server validate them against the lifts table.
+  const groups = {}
+  for (const s of sessions) {
+    const g = muscleGroupFor(s.exercise)
+    if (g === 'other') continue
+    groups[g] = Math.max(groups[g] ?? 0, s.weight ?? 0)
+  }
+  return {
+    sessions: state?.totals?.sessions ?? new Set(dates).size,
+    best: Math.max(0, ...sessions.map((s) => s.weight ?? 0)),
+    exercises: new Set(sessions.map((s) => s.exercise).filter(Boolean)).size,
+    streak: currentStreakOf(dates),
+    bestStreak: bestStreakOf(dates),
+    groups,
+  }
+}
+
+// Publish the owner's public stats onto their profile row so other users can
+// see badges/widgets. Never overwrites bio/decoration/etc. Safe to fail
+// silently at the call site (stats are cosmetic).
+export async function publishStats(supabase, userId, state) {
+  const stats = deriveStats(state)
+  // Make sure lifts rows exist before publishing: the server cross-checks
+  // stats.best against them. seed_lifts() replays the stored history through
+  // the progression rules and is a no-op once lifts exist (or on old schemas).
+  await supabase.rpc('seed_lifts').then(() => {}, () => {})
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ stats, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .select('user_id')
+  if (error) throw error
+  if (!data?.length) {
+    // No profile row yet (never set a nickname) — create a minimal one.
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .upsert({ user_id: userId, stats, updated_at: new Date().toISOString() })
+    if (insertError) throw insertError
+  }
 }

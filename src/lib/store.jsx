@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { supabase } from './supabase'
 import { getUserId, subscribeUser, registerBeforeSignOut } from './auth'
 import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
+import { publishStats } from './profile'
+import { clampWeight } from './integrity'
 
 const KEY = 'pulse.state.v2'
 
@@ -30,15 +32,26 @@ const DEFAULT = {
   plan: {},
   settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark' },
   lastActiveExercise: null,
+  totals: { sessions: 0, lastSessionDay: null },
 }
 
 function normalize(raw) {
+  const sessions = raw.sessions ?? DEFAULT.sessions
   return {
     days: raw.days ?? DEFAULT.days,
-    sessions: raw.sessions ?? DEFAULT.sessions,
+    sessions,
     plan: raw.plan ?? {},
     settings: { ...DEFAULT.settings, ...(raw.settings ?? {}) },
     lastActiveExercise: raw.lastActiveExercise ?? DEFAULT.lastActiveExercise,
+    // Lifetime counter feeds profile badges; older states lack it, so
+    // backfill from the (capped) session list on first sight. A session is a
+    // workout DAY, not an exercise, so count unique dates.
+    totals: raw.totals
+      ? { lastSessionDay: null, ...raw.totals }
+      : {
+          sessions: new Set(sessions.map((s) => s.full).filter(Boolean)).size,
+          lastSessionDay: sessions.reduce((max, s) => (s.full > max ? s.full : max), null),
+        },
   }
 }
 
@@ -102,6 +115,7 @@ export function StoreProvider({ children }) {
         // signed out) — that would wipe a real cloud copy.
         lastSynced.current = Date.now()
         await pushState(supabase, userId, stateRef.current)
+        publishStats(supabase, userId, stateRef.current).catch(() => {})
       }
     } catch {}
   }
@@ -128,6 +142,7 @@ export function StoreProvider({ children }) {
       if (!hasWorkoutData(stateRef.current)) return
       try {
         await pushState(supabase, userId, stateRef.current)
+        publishStats(supabase, userId, stateRef.current).catch(() => {})
         lastSynced.current = Date.now()
       } catch {}
     })
@@ -161,6 +176,7 @@ export function StoreProvider({ children }) {
       pushState(supabase, userId, state)
         .then(() => {
           lastSynced.current = Date.now()
+          publishStats(supabase, userId, state).catch(() => {})
         })
         .catch(() => {})
     }, 400)
@@ -193,6 +209,7 @@ export function StoreProvider({ children }) {
       plan: state.plan,
       settings: state.settings,
       lastActiveExercise: state.lastActiveExercise,
+      totals: state.totals,
 
       addDay(name, weekday) {
         const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
@@ -296,6 +313,7 @@ export function StoreProvider({ children }) {
           const full = now.toISOString().slice(0, 10)
 
           let sessions = s.sessions
+          let totals = s.totals
           if (willBeDone) {
             const prevBest = Math.max(
               0,
@@ -303,14 +321,27 @@ export function StoreProvider({ children }) {
                 .filter((x) => x.exercise === ex.name && x.full !== full)
                 .map((x) => x.weight ?? 0),
             )
+            // Anti-cheat: the stored weight is clamped to a plausible
+            // progression from the previous best (see lib/integrity.js), so
+            // typing 200 kg out of nowhere can't unlock strength achievements.
+            const weight = clampWeight(ex.weight, prevBest, ex.name)
             const newSession = {
               date: dateStr,
               full,
               exercise: ex.name,
               sets: ex.sets,
               reps: ex.reps,
-              weight: ex.weight,
-              pr: ex.weight >= prevBest && ex.weight > 0,
+              weight,
+              pr: weight >= prevBest && weight > 0,
+              ...(weight < ex.weight ? { capped: true } : {}),
+            }
+            // A "session" is a whole workout day: only the first completed
+            // exercise of a day bumps the lifetime counter. `lastSessionDay`
+            // is remembered even if the day's sessions get unchecked again,
+            // so toggling on/off can't farm extra sessions.
+            const newDay = totals.lastSessionDay !== full
+            if (newDay) {
+              totals = { sessions: totals.sessions + 1, lastSessionDay: full }
             }
             sessions = sessions
               .filter((x) => !(x.exercise === ex.name && x.full === full))
@@ -319,7 +350,7 @@ export function StoreProvider({ children }) {
             sessions = [newSession, ...sessions].slice(0, 60)
           }
 
-          return { ...s, days, sessions }
+          return { ...s, days, sessions, totals }
         })
         if (fresh.length) fresh.forEach((f) => recordLift(f.exercise, f.weight))
       },
@@ -375,16 +406,24 @@ export function StoreProvider({ children }) {
           sessions: state.sessions,
           plan: state.plan,
           settings: state.settings,
+          totals: state.totals,
         }
       },
 
       importAll(data) {
         if (!data || !Array.isArray(data.days)) return false
+        const sessions = data.sessions ?? DEFAULT.sessions
         setState({
           days: data.days,
-          sessions: data.sessions ?? DEFAULT.sessions,
+          sessions,
           plan: data.plan ?? {},
           settings: { ...DEFAULT.settings, ...data.settings },
+          // Never trust totals from an import file — it can be hand-edited to
+          // fake achievements. Recompute from the imported session history.
+          totals: {
+            sessions: new Set(sessions.map((s) => s.full).filter(Boolean)).size,
+            lastSessionDay: sessions.reduce((max, s) => (s.full > max ? s.full : max), null),
+          },
         })
         return true
       },
@@ -397,6 +436,7 @@ export function StoreProvider({ children }) {
           plan: {},
           settings: s.settings,
           lastActiveExercise: null,
+          totals: { sessions: 0, lastSessionDay: null },
         }))
         if (supabase && userId) clearLifts(supabase, userId).catch(() => {})
       },

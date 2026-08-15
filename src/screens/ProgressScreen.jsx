@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, CalendarCheck, Check, ChevronDown, Dumbbell, Lock, Repeat, Trophy } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight, CalendarCheck, Check, ChevronDown, Dumbbell, Lock, Repeat, ShieldCheck, Trophy } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
@@ -7,11 +7,24 @@ import { supabase } from '../lib/supabase'
 import { fetchTopLifts, buildRows, fetchUserLift } from '../lib/leaderboard'
 import { fetchProfiles } from '../lib/profile'
 import AuthModal from '../components/AuthModal'
-import { Avatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
+import ProfileView from '../components/ProfileView'
+import { DecoratedAvatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
 
 function WeightChart({ series }) {
+  const boxRef = useRef(null)
+  const [width, setWidth] = useState(320)
+  useEffect(() => {
+    if (!boxRef.current) return
+    const ro = new ResizeObserver(([entry]) => {
+      const w = Math.round(entry.contentRect.width)
+      if (w > 0) setWidth(w)
+    })
+    ro.observe(boxRef.current)
+    return () => ro.disconnect()
+  }, [])
+
   if (!series || series.length === 0) return null
-  const W = 320
+  const W = width
   const H = 180
   const PAD_L = 30
   const PAD_B = 24
@@ -32,7 +45,8 @@ function WeightChart({ series }) {
   const ticks = [0, 1, 2, 3, 4].map((t) => lo + ((hi - lo) * t) / 4)
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+    <div ref={boxRef} className="w-full">
+      <svg width={W} height={H} className="block max-w-full">
       <defs>
         <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.28" />
@@ -82,7 +96,8 @@ function WeightChart({ series }) {
       >
         {values[values.length - 1]}
       </text>
-    </svg>
+      </svg>
+    </div>
   )
 }
 
@@ -94,6 +109,7 @@ export default function ProgressScreen() {
   const [open, setOpen] = useState(false)
   const [liveRows, setLiveRows] = useState(null)
   const [liveLoading, setLiveLoading] = useState(false)
+  const [profileUser, setProfileUser] = useState(null)
   const authDialog = useDialog()
 
   const sessions = store.sessions
@@ -295,17 +311,33 @@ export default function ProgressScreen() {
                 </div>
               ) : (
                 lbRows.slice(0, 4).map((r) => (
-                  <div key={r.name} className="flex items-center gap-3">
+                  <button
+                    key={r.name}
+                    onClick={() =>
+                      r.user_id &&
+                      setProfileUser({ user_id: r.user_id, nickname: r.name, pfp: r.avatar })
+                    }
+                    className="flex items-center gap-3 text-left"
+                  >
                     <span className={`w-6 text-center text-[13px] ${r.you ? 'font-bold text-accent' : 'text-faint'}`}>
                       {r.rank}
                     </span>
-                    <Avatar initials={initialsOf(r.name)} color={r.color} size={26} src={r.avatar} />
+                    <DecoratedAvatar
+                      decoration={r.decoration}
+                      initials={initialsOf(r.name)}
+                      color={r.color}
+                      size={26}
+                      src={r.avatar}
+                    />
                     <div className="flex flex-1 flex-col leading-tight">
-                      <span className="text-[13px] font-medium text-ink">{r.name}</span>
+                      <span className="flex items-center gap-1 text-[13px] font-medium text-ink">
+                        {r.name}
+                        {r.isAdmin && <ShieldCheck size={11} color="var(--color-accent)" />}
+                      </span>
                       <span className="text-[11px] text-muted">{r.handle}</span>
                     </div>
                     <span className="text-[13px] font-semibold text-accent">{r.weight} kg</span>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -360,6 +392,15 @@ export default function ProgressScreen() {
                   PR
                 </span>
               )}
+              {s.capped && (
+                <span
+                  className="flex items-center gap-0.5 rounded-full bg-tile px-1 py-0.5 text-[10px] font-medium text-faint"
+                  title="Entered weight was limited by the progression guard"
+                >
+                  <ShieldCheck size={9} color="var(--color-faint)" />
+                  limited
+                </span>
+              )}
               <div
                 className={`flex h-[22px] w-[22px] items-center justify-center rounded-full ${
                   s.pr ? 'bg-good/15' : 'bg-line/5'
@@ -390,6 +431,18 @@ export default function ProgressScreen() {
           </div>
         )}
       </div>
+
+      {profileUser && (
+        <ProfileView
+          user={profileUser}
+          isYou={profileUser.user_id === auth.user?.id}
+          onClose={() => setProfileUser(null)}
+          onPickExercise={(ex) => {
+            setProfileUser(null)
+            nav.go('leaderboard', { ex })
+          }}
+        />
+      )}
 
       <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>

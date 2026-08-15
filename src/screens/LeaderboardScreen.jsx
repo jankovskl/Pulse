@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Lock } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, Dumbbell, Lock, ShieldCheck } from 'lucide-react'
 import { exerciseOptions, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
@@ -8,15 +8,14 @@ import {
   fetchTopLifts,
   buildRows,
   fetchUserLifts,
-  fetchLiftRanks,
   fetchDistinctExercises,
   notDoneExercises,
-  buildPlayerExerciseList,
 } from '../lib/leaderboard'
 import { fetchProfiles, searchProfiles } from '../lib/profile'
 import LeaderboardFilterBar from '../components/LeaderboardFilterBar'
 import AuthModal from '../components/AuthModal'
-import { Avatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
+import ProfileView from '../components/ProfileView'
+import { DecoratedAvatar, initialsOf, Screen, useDialog, useNav } from '../components/ui'
 
 export default function LeaderboardScreen() {
   const nav = useNav()
@@ -31,7 +30,6 @@ export default function LeaderboardScreen() {
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [player, setPlayer] = useState(null) // { user_id, nickname, pfp } | null
-  const [playerRows, setPlayerRows] = useState(null) // null = loading
   const [notDoing, setNotDoing] = useState(false)
   const [notDoingOptions, setNotDoingOptions] = useState(null) // null = loading/off
   const [filterTick, setFilterTick] = useState(0)
@@ -46,6 +44,10 @@ export default function LeaderboardScreen() {
     setPlayer(null)
     setQuery('')
     setSearchResults([])
+  }
+  const openProfile = (r) => {
+    if (!r?.user_id) return
+    setPlayer({ user_id: r.user_id, nickname: r.name, pfp: r.avatar })
   }
   const current = exercise || options[0] || 'Bench Press'
 
@@ -85,27 +87,6 @@ export default function LeaderboardScreen() {
       active = false
     }
   }, [debouncedQuery, auth.user])
-
-  useEffect(() => {
-    if (!supabase || !player) {
-      setPlayerRows(null)
-      return
-    }
-    let active = true
-    const load = async () => {
-      try {
-        const lifts = await fetchUserLifts(supabase, player.user_id)
-        const ranks = await fetchLiftRanks(supabase, lifts)
-        if (active) setPlayerRows(buildPlayerExerciseList(lifts, ranks))
-      } catch {
-        if (active) setPlayerRows([])
-      }
-    }
-    load()
-    return () => {
-      active = false
-    }
-  }, [player, auth.user, filterTick])
 
   useEffect(() => {
     if (!supabase || !auth.user || !notDoing) {
@@ -204,7 +185,7 @@ export default function LeaderboardScreen() {
           </div>
         </div>
 
-        {auth.user && !player && (
+        {auth.user && (
           <LeaderboardFilterBar
             query={query}
             onQueryChange={setQuery}
@@ -226,57 +207,8 @@ export default function LeaderboardScreen() {
           />
         )}
 
-        {player ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exitPlayer}
-                className="flex h-9 w-9 items-center justify-center rounded-3xl"
-              >
-                <ChevronLeft size={18} color="var(--color-ink)" />
-              </button>
-              <Avatar
-                initials={initialsOf(player.nickname || player.user_id)}
-                color="#3B3B47"
-                size={30}
-                src={player.pfp}
-              />
-              <div className="flex flex-col">
-                <span className="text-[15px] font-semibold text-ink">{player.nickname}</span>
-                <span className="text-[11px] text-faint">
-                  {playerRows === null ? 'Loading lifts…' : `${playerRows.length} exercises`}
-                </span>
-              </div>
-            </div>
-            {playerRows === null ? null : playerRows.length === 0 ? (
-              <p className="text-[11px] leading-relaxed text-faint">This player has no lifts yet.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {playerRows.map((r) => (
-                  <button
-                    key={r.exercise}
-                    onClick={() => {
-                      setExercise(r.exercise)
-                      exitPlayer()
-                    }}
-                    className="flex items-center gap-3 rounded-[16px] bg-surface px-3.5 py-3 text-left outline outline-1 outline-line/10"
-                  >
-                    <div className="flex flex-1 flex-col">
-                      <span className="text-[14px] font-medium text-ink">{r.exercise}</span>
-                      <span className="text-[11px] text-muted">{r.weight} kg</span>
-                    </div>
-                    <span className="text-[14px] font-semibold text-ink">
-                      {r.rank <= 3 ? (r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉') : `#${r.rank}`}
-                    </span>
-                    <ChevronRight size={16} color="var(--color-faint)" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="relative">
+        <>
+          <div className="relative">
               <span className="mb-1.5 block text-[10px] font-semibold tracking-[1px] text-muted">
                 EXERCISE
               </span>
@@ -339,7 +271,11 @@ export default function LeaderboardScreen() {
           >
             <div className="flex items-end justify-center gap-2.5 pt-4">
               {[top3[1], top3[0], top3[2]].filter(Boolean).map((r) => (
-                <div key={r.name} className="flex w-[92px] flex-col items-center">
+                <button
+                  key={r.name}
+                  onClick={() => openProfile(r)}
+                  className="flex w-[92px] flex-col items-center"
+                >
                   <span className="mb-1.5 text-[11px] font-semibold text-faint">
                     {r.name.split(' ')[0]}
                   </span>
@@ -352,7 +288,13 @@ export default function LeaderboardScreen() {
                           : 'h-[64px] bg-gradient-to-b from-[#B08D5722] to-transparent outline-[#B08D5740]'
                     }`}
                   >
-                    <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
+                    <DecoratedAvatar
+                      decoration={r.decoration}
+                      initials={initialsOf(r.name)}
+                      color={r.color}
+                      size={30}
+                      src={r.avatar}
+                    />
                     <span className="mt-1 text-[13px] font-bold text-ink">{r.weight}</span>
                   </div>
                   <span
@@ -362,15 +304,16 @@ export default function LeaderboardScreen() {
                   >
                     {r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : '🥉'}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
 
             <div className="flex flex-col gap-2">
               {rest.map((r) => (
-                <div
+                <button
                   key={r.name}
-                  className={`flex items-center gap-3 rounded-[16px] px-3.5 py-3 ${
+                  onClick={() => openProfile(r)}
+                  className={`flex items-center gap-3 rounded-[16px] px-3.5 py-3 text-left ${
                     r.you
                       ? 'bg-accent/15 outline outline-1 outline-accent/40'
                       : 'bg-surface outline outline-1 outline-line/10'
@@ -381,15 +324,24 @@ export default function LeaderboardScreen() {
                   >
                     {r.rank}
                   </span>
-                  <Avatar initials={initialsOf(r.name)} color={r.color} size={30} src={r.avatar} />
+                  <DecoratedAvatar
+                    decoration={r.decoration}
+                    initials={initialsOf(r.name)}
+                    color={r.color}
+                    size={30}
+                    src={r.avatar}
+                  />
                   <div className="flex flex-1 flex-col leading-tight">
-                    <span className="text-[14px] font-medium text-ink">{r.name}</span>
+                    <span className="flex items-center gap-1 text-[14px] font-medium text-ink">
+                      {r.name}
+                      {r.isAdmin && <ShieldCheck size={12} color="var(--color-accent)" />}
+                    </span>
                     <span className="text-[11px] text-muted">{r.handle}</span>
                   </div>
                   <span className={`text-[14px] font-semibold ${r.you ? 'text-accent' : 'text-ink'}`}>
                     {r.weight} kg
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -410,9 +362,20 @@ export default function LeaderboardScreen() {
             </div>
           )}
         </div>
-          </>
-        )}
+        </>
         </div>
+
+      {player && (
+        <ProfileView
+          user={player}
+          isYou={player.user_id === auth.user?.id}
+          onClose={exitPlayer}
+          onPickExercise={(ex) => {
+            setExercise(ex)
+            exitPlayer()
+          }}
+        />
+      )}
 
       <AuthModal open={authDialog.open} onClose={authDialog.closeDialog} />
     </Screen>

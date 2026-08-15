@@ -31,9 +31,12 @@ export function buildRows(realLifts, userId, profileMap = {}) {
     const p = profileMap[l.user_id] || {}
     const name = isYou ? p.nickname || 'You' : p.nickname || l.user_id.slice(0, 6)
     return {
+      user_id: l.user_id,
       name,
       handle: isYou ? 'your best' : p.nickname ? '' : l.user_id.slice(0, 8),
       avatar: p.pfp || null,
+      decoration: p.decoration || null,
+      isAdmin: !!p.isAdmin,
       color: isYou ? 'var(--color-accent)' : '#3B3B47',
       weight: Number(l.weight),
       you: isYou,

@@ -100,7 +100,7 @@ export function TabDock({ active }) {
 export function Sidebar({ active }) {
   const nav = useNav()
   return (
-    <aside className="hidden h-dvh w-[220px] shrink-0 flex-col gap-1 border-r border-line/10 bg-dock/40 p-3 backdrop-blur md:flex">
+    <aside className="hidden h-dvh w-[220px] shrink-0 flex-col gap-1 border-r border-line/10 bg-dock/40 p-3 backdrop-blur md:sticky md:top-0 md:flex">
       <div className="mb-3 flex items-center gap-2 px-2 pt-2">
         <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="var(--color-accent)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -243,6 +243,143 @@ export function initialsOf(name) {
     .slice(0, 2)
     .join('')
     .toUpperCase()
+}
+
+// Avatar wrapped in an unlockable decoration ring (see lib/badges.js).
+const DECORATION_RINGS = {
+  accent: { background: 'var(--color-accent)' },
+  glow: {
+    background: 'var(--color-accent)',
+    boxShadow: '0 0 12px 2px color-mix(in srgb, var(--color-accent) 55%, transparent)',
+  },
+  flame: { background: 'linear-gradient(135deg, #FF383C, #F5A524)' },
+  gold: { background: 'linear-gradient(135deg, #F5D061, #B08D57, #F5D061)' },
+  plate: { background: 'repeating-conic-gradient(#D7DCE6 0deg 24deg, #7E8798 24deg 48deg)' },
+}
+
+// Accessories sit on top of the avatar. Percent-based shapes scale with any
+// avatar size; the crown needs an explicit font size, so it gets `size`.
+function CatEars() {
+  return (
+    <>
+      <span className="absolute -top-[8%] left-[2%] h-[34%] w-[32%] -rotate-[14deg]" style={{ background: '#2A2A33', clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)' }} />
+      <span className="absolute -top-[2%] left-[11%] h-[17%] w-[15%] -rotate-[14deg]" style={{ background: '#FF9ECD', clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)' }} />
+      <span className="absolute -top-[8%] right-[2%] h-[34%] w-[32%] rotate-[14deg]" style={{ background: '#2A2A33', clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)' }} />
+      <span className="absolute -top-[2%] right-[11%] h-[17%] w-[15%] rotate-[14deg]" style={{ background: '#FF9ECD', clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)' }} />
+    </>
+  )
+}
+
+function Halo() {
+  return (
+    <span
+      className="absolute -top-[18%] left-1/2 h-[18%] w-[62%] -translate-x-1/2 rounded-[50%] border-2 border-[#F5D061]"
+      style={{ boxShadow: '0 0 6px #F5D06188' }}
+    />
+  )
+}
+
+function Crown({ size }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute -top-[32%] left-1/2"
+      style={{ fontSize: Math.round(size * 0.48), lineHeight: 1, transform: 'translateX(-58%) rotate(-10deg)' }}
+    >
+      👑
+    </span>
+  )
+}
+
+function Wings() {
+  return (
+    <>
+      <span
+        className="absolute -left-[26%] top-[20%] h-[50%] w-[36%]"
+        style={{
+          background: 'linear-gradient(135deg, #EEF1F8, #9AA5BC)',
+          clipPath: 'polygon(100% 0%, 0% 42%, 62% 100%)',
+          opacity: 0.95,
+        }}
+      />
+      <span
+        className="absolute -right-[26%] top-[20%] h-[50%] w-[36%]"
+        style={{
+          background: 'linear-gradient(-135deg, #EEF1F8, #9AA5BC)',
+          clipPath: 'polygon(0% 0%, 100% 42%, 38% 100%)',
+          opacity: 0.95,
+        }}
+      />
+    </>
+  )
+}
+
+const DECORATION_ACCESSORIES = {
+  'cat-ears': () => <CatEars />,
+  crown: (size) => <Crown size={size} />,
+  halo: () => <Halo />,
+  wings: () => <Wings />,
+}
+
+// Banner styles for full-profile frame decorations (see ProfileView header).
+export const DECORATION_FRAMES = {
+  aurora: { background: 'linear-gradient(120deg, #7C3AED 0%, #0485F7 45%, #17C964 100%)' },
+  neon: {
+    background: '#0B0B12',
+    boxShadow:
+      'inset 0 0 0 2px var(--color-accent), inset 0 0 18px color-mix(in srgb, var(--color-accent) 35%, transparent)',
+  },
+  forge: {
+    background: 'linear-gradient(135deg, #1C0B06 0%, #4A1505 55%, #B4451A 100%)',
+    boxShadow: 'inset 0 0 22px #FF6A0055',
+  },
+  starfall: {
+    backgroundColor: '#0A0E23',
+    backgroundImage:
+      'radial-gradient(circle at 18% 28%, #FFFFFFCC 1px, transparent 1.6px),' +
+      'radial-gradient(circle at 68% 18%, #FFFFFF99 1px, transparent 1.6px),' +
+      'radial-gradient(circle at 84% 62%, #FFFFFFCC 1.2px, transparent 1.8px),' +
+      'radial-gradient(circle at 38% 72%, #FFFFFF88 1px, transparent 1.6px),' +
+      'radial-gradient(circle at 55% 44%, #F5D061CC 1.2px, transparent 1.8px)',
+  },
+}
+
+// Title decorations: a prestige nameplate shown under the nickname on the
+// public profile. `gradient` wins over `color` for the fancy ones.
+export const DECORATION_TITLES = {
+  'title-iron-arms': { text: 'Iron Arms', color: '#B8C4DA' },
+  'title-cannon': { text: 'Cannon', color: '#F5A524' },
+  'title-colossus': { text: 'Colossus', color: '#17C964' },
+  'title-earthshaker': { text: 'Earthshaker', gradient: 'linear-gradient(90deg, #F5D061, #F5A524)' },
+}
+
+export function DecorationTitle({ decoration, size = 'text-[11px]' }) {
+  const t = DECORATION_TITLES[decoration]
+  if (!t) return null
+  return (
+    <span
+      className={`w-fit font-bold uppercase tracking-[1.8px] ${size}`}
+      style={
+        t.gradient
+          ? { background: t.gradient, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+          : { color: t.color }
+      }
+    >
+      {t.text}
+    </span>
+  )
+}
+
+export function DecoratedAvatar({ decoration, size = 30, ...avatarProps }) {
+  const ring = DECORATION_RINGS[decoration]
+  const accessory = DECORATION_ACCESSORIES[decoration]
+  if (!ring && !accessory) return <Avatar size={size} {...avatarProps} />
+  return (
+    <div className={`relative shrink-0 ${ring ? 'rounded-full p-[2px]' : ''}`} style={ring}>
+      <Avatar size={size} {...avatarProps} />
+      {accessory?.(size)}
+    </div>
+  )
 }
 
 export function useDialog() {
