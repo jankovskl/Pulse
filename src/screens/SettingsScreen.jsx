@@ -161,7 +161,7 @@ export default function SettingsScreen() {
     saveProfilePatch({ widgets: next })
   }
 
-  function pickDecoration(d) {
+  async function pickDecoration(d) {
     if (!isDecorationUnlocked(myBadges, d.id)) return
     // One decoration per slot: picking again unequips it; "None" clears rings.
     const next = { ...equipped }
@@ -171,7 +171,16 @@ export default function SettingsScreen() {
     try {
       localStorage.setItem('pulse.debug.decoration', JSON.stringify(next))
     } catch {}
-    saveProfilePatch({ decorations: next })
+    if (!supabase || !auth.user) return
+    // The server guard validates each slot against the stats blob in the same
+    // write. Re-publish fresh stats (and seed the lifts rows it cross-checks)
+    // so a genuinely earned accessory isn't dropped because the previously
+    // published stats were stale.
+    await supabase.rpc('seed_lifts').then(() => {}, () => {})
+    saveProfilePatch({
+      decorations: next,
+      stats: deriveStats({ sessions: store.sessions, totals: store.totals }),
+    })
   }
 
   useEffect(() => {
