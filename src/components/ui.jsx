@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useRef, useEffect } from 'react'
 import { fmt, useTimer } from '../lib/timer'
+import { decorationById } from '../lib/badges'
 
 export const NavCtx = createContext(null)
 
@@ -371,8 +372,21 @@ export function DecorationTitle({ decoration, size = 'text-[11px]' }) {
 }
 
 export function DecoratedAvatar({ decoration, size = 30, ...avatarProps }) {
-  const ring = DECORATION_RINGS[decoration]
-  const accessory = DECORATION_ACCESSORIES[decoration]
+  let ringId = null
+  let accessoryId = null
+  if (decoration && typeof decoration === 'object') {
+    // Equipped set: { ring, accessory, title, frame } — avatar shows the
+    // ring + accessory slots.
+    ringId = decoration.ring ?? null
+    accessoryId = decoration.accessory ?? null
+  } else if (decoration) {
+    // Legacy single decoration id.
+    const d = decorationById(decoration)
+    if (d.type === 'ring') ringId = d.id
+    else if (d.type === 'accessory') accessoryId = d.id
+  }
+  const ring = DECORATION_RINGS[ringId]
+  const accessory = DECORATION_ACCESSORIES[accessoryId]
   if (!ring && !accessory) return <Avatar size={size} {...avatarProps} />
   return (
     <div className={`relative shrink-0 ${ring ? 'rounded-full p-[2px]' : ''}`} style={ring}>

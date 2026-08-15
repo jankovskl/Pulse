@@ -46,7 +46,7 @@ export default function LeaderboardFilterBar({
                   onClick={() => onSelectPlayer(p)}
                   className="flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-left text-[13px] text-sub hover:bg-accent/15"
                 >
-                  <DecoratedAvatar decoration={p.decoration} initials={initialsOf(p.nickname)} color="#3B3B47" size={22} src={p.pfp} />
+                  <DecoratedAvatar decoration={p.decorations || p.decoration} initials={initialsOf(p.nickname)} color="#3B3B47" size={22} src={p.pfp} />
                   <span className="truncate">{p.nickname}</span>
                 </button>
               ))

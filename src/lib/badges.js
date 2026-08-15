@@ -237,18 +237,69 @@ export const DECORATION_TYPES = [
   { type: 'frame', label: 'Profile frames' },
 ]
 
+// A player can equip one decoration per slot at the same time. Stored as a
+// jsonb object { ring, accessory, title, frame } in profiles.decorations.
+export const DECORATION_SLOTS = ['ring', 'accessory', 'title', 'frame']
+
+// Normalize a profile row into the equipped-set shape. Understands both the
+// new `decorations` object and the legacy single `decoration` string.
+export function parseDecorations(profile) {
+  const obj = profile?.decorations
+  if (obj && typeof obj === 'object') {
+    const out = {}
+    for (const slot of DECORATION_SLOTS) {
+      const d = obj[slot] ? decorationById(obj[slot]) : null
+      if (d && d.id !== 'none' && d.type === slot) out[slot] = d.id
+    }
+    return out
+  }
+  const legacy = profile?.decoration
+  if (legacy && legacy !== 'none') {
+    const d = decorationById(legacy)
+    if (d.id !== 'none') return { [d.type]: d.id }
+  }
+  return {}
+}
+
 export function decorationById(id) {
   return DECORATIONS.find((d) => d.id === id) ?? DECORATIONS[0]
 }
 
+// Dev/testing override: run `localStorage.setItem('pulse.debug.unlockAll', '1')`
+// in the browser console and reload to preview every decoration. Clear it with
+// `localStorage.removeItem('pulse.debug.unlockAll')`. The server still only
+// accepts decorations that are genuinely earned, so this is visual-only.
+function debugUnlockAll() {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('pulse.debug.unlockAll') === '1'
+  } catch {
+    return false
+  }
+}
+
 // Decorations the given earned badges allow (always includes the free ones).
 export function availableDecorations(badges) {
-  return DECORATIONS.filter((d) => !d.requires || hasBadge(badges, d.requires))
+  return DECORATIONS.filter((d) => !d.requires || debugUnlockAll() || hasBadge(badges, d.requires))
 }
 
 export function isDecorationUnlocked(badges, decorationId) {
   const d = decorationById(decorationId)
-  return !d.requires || hasBadge(badges, d.requires)
+  return !d.requires || debugUnlockAll() || hasBadge(badges, d.requires)
+}
+
+// While the debug override is on, the picker mirrors the equipped set here so
+// it can be previewed on your OWN profile popup even though the server
+// rejects unearned decorations. Returns an equipped-set object or null.
+export function debugDecorationOverride(isYou) {
+  if (!isYou || !debugUnlockAll()) return null
+  try {
+    const raw = localStorage.getItem('pulse.debug.decoration')
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    return obj && typeof obj === 'object' ? obj : null
+  } catch {
+    return null
+  }
 }
 
 // Stat widgets a user can pin to their profile (stored ordered in

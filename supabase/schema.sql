@@ -61,6 +61,9 @@ create table if not exists public.profiles (
 -- (an app-level grant mechanism is planned later)
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists decoration text;
+-- Equipped decoration set: one per slot, e.g. {"ring":"gold","title":"title-colossus"}.
+-- Replaces the single `decoration` column (kept for older clients).
+alter table public.profiles add column if not exists decorations jsonb not null default '{}'::jsonb;
 alter table public.profiles add column if not exists widgets jsonb not null default '[]'::jsonb;
 alter table public.profiles add column if not exists stats jsonb not null default '{}'::jsonb;
 alter table public.profiles add column if not exists is_admin boolean not null default false;
@@ -116,6 +119,50 @@ language sql immutable as $$
   select case when s ->> k ~ '^\d{1,7}$' then (s ->> k)::int else fallback end;
 $$;
 
+-- Safe int read of a per-muscle-group best from the stats blob.
+create or replace function public.group_as_int(s jsonb, k text)
+returns int
+language sql immutable as $$
+  select case when (s -> 'groups') ->> k ~ '^\d{1,7}$' then ((s -> 'groups') ->> k)::int else 0 end;
+$$;
+
+-- Which slot a decoration occupies (mirrors DECORATIONS in lib/badges.js).
+create or replace function public.decoration_slot(id text)
+returns text
+language sql immutable as $$
+  select case
+    when id in ('accent', 'glow', 'flame', 'gold', 'plate') then 'ring'
+    when id in ('cat-ears', 'crown', 'halo', 'wings') then 'accessory'
+    when id in ('title-iron-arms', 'title-cannon', 'title-colossus', 'title-earthshaker') then 'title'
+    when id in ('aurora', 'neon', 'forge', 'starfall') then 'frame'
+    else null
+  end;
+$$;
+
+-- Is a decoration unlocked by an (already sanitized) stats blob?
+create or replace function public.decoration_unlocked(id text, s jsonb)
+returns boolean
+language sql immutable as $$
+  select
+    id in ('none', 'accent')
+    or (id = 'glow' and public.stat_as_int(s, 'sessions', 0) >= 25)
+    or (id = 'flame' and public.stat_as_int(s, 'bestStreak', 0) >= 7)
+    or (id = 'gold' and public.stat_as_int(s, 'sessions', 0) >= 100)
+    or (id = 'cat-ears' and public.stat_as_int(s, 'exercises', 0) >= 10)
+    or (id = 'crown' and public.stat_as_int(s, 'best', 0) >= 150)
+    or (id = 'halo' and public.stat_as_int(s, 'bestStreak', 0) >= 30)
+    or (id = 'aurora' and public.stat_as_int(s, 'sessions', 0) >= 50)
+    or (id = 'neon' and public.stat_as_int(s, 'best', 0) >= 100)
+    or (id = 'starfall' and public.stat_as_int(s, 'sessions', 0) >= 365)
+    or (id = 'plate' and public.group_as_int(s, 'chest') >= 100)
+    or (id = 'wings' and public.group_as_int(s, 'back') >= 120)
+    or (id = 'forge' and public.group_as_int(s, 'chest') >= 150)
+    or (id = 'title-iron-arms' and public.group_as_int(s, 'arms') >= 50)
+    or (id = 'title-cannon' and public.group_as_int(s, 'shoulders') >= 70)
+    or (id = 'title-colossus' and public.group_as_int(s, 'legs') >= 200)
+    or (id = 'title-earthshaker' and public.group_as_int(s, 'legs') >= 300);
+$$;
+
 create or replace function public.guard_profile_stats()
 returns trigger
 language plpgsql
@@ -139,6 +186,10 @@ declare
   g_back int := 0;
   g_shoulders int := 0;
   g_arms int := 0;
+  dd jsonb;
+  od jsonb;
+  slot text;
+  dv text;
   req_role text := coalesce(current_setting('request.jwt.role', true), '');
 begin
   -- Clamp stats -------------------------------------------------------------
@@ -193,26 +244,32 @@ begin
   new.stats := s;
 
   -- Decoration must be unlocked by the sanitized stats -----------------------
-  if new.decoration is not null and new.decoration not in ('none', 'accent') then
-    if not (
-      (new.decoration = 'glow' and f_sessions >= 25) or
-      (new.decoration = 'flame' and f_best_streak >= 7) or
-      (new.decoration = 'gold' and f_sessions >= 100) or
-      (new.decoration = 'cat-ears' and f_exercises >= 10) or
-      (new.decoration = 'crown' and f_best >= 150) or
-      (new.decoration = 'halo' and f_best_streak >= 30) or
-      (new.decoration = 'aurora' and f_sessions >= 50) or
-      (new.decoration = 'neon' and f_best >= 100) or
-      (new.decoration = 'starfall' and f_sessions >= 365) or
-      (new.decoration = 'plate' and g_chest >= 100) or
-      (new.decoration = 'wings' and g_back >= 120) or
-      (new.decoration = 'forge' and g_chest >= 150) or
-      (new.decoration = 'title-iron-arms' and g_arms >= 50) or
-      (new.decoration = 'title-cannon' and g_shoulders >= 70) or
-      (new.decoration = 'title-colossus' and g_legs >= 200) or
-      (new.decoration = 'title-earthshaker' and g_legs >= 300)
-    ) then
-      new.decoration := case when tg_op = 'UPDATE' then old.decoration else null end;
+  if new.decoration is not null and not public.decoration_unlocked(new.decoration, s) then
+    new.decoration := case when tg_op = 'UPDATE' then old.decoration else null end;
+  end if;
+
+  -- Equipped set: one decoration per slot, each validated the same way.
+  -- A slot that fails validation reverts to its previous value (or is
+  -- dropped); unknown/foreign ids never get in.
+  if new.decorations is not null then
+    if jsonb_typeof(new.decorations) <> 'object' then
+      new.decorations := case when tg_op = 'UPDATE'
+        then coalesce(old.decorations, '{}'::jsonb) else '{}'::jsonb end;
+    else
+      od := case when tg_op = 'UPDATE'
+        then coalesce(old.decorations, '{}'::jsonb) else '{}'::jsonb end;
+      dd := '{}'::jsonb;
+      foreach slot in array array['ring', 'accessory', 'title', 'frame'] loop
+        dv := new.decorations ->> slot;
+        if dv is not null and dv <> 'none'
+           and public.decoration_slot(dv) = slot
+           and public.decoration_unlocked(dv, s) then
+          dd := jsonb_set(dd, array[slot], to_jsonb(dv));
+        elsif dv is not null and od ? slot then
+          dd := jsonb_set(dd, array[slot], od -> slot);
+        end if;
+      end loop;
+      new.decorations := dd;
     end if;
   end if;
 
@@ -236,6 +293,15 @@ drop trigger if exists "guard profile" on public.profiles;
 create trigger "guard profile"
   before insert or update on public.profiles
   for each row execute function public.guard_profile_stats();
+
+-- One-shot migration: copy a legacy single `decoration` into the new
+-- equipped-set column for rows never migrated. The guard trigger runs on
+-- this update too, so anything not genuinely earned is dropped again.
+update public.profiles
+set decorations = jsonb_build_object(public.decoration_slot(decoration), decoration)
+where decoration is not null
+  and public.decoration_slot(decoration) is not null
+  and coalesce(decorations, '{}'::jsonb) = '{}'::jsonb;
 
 -- 7. Anti-cheat guard for lifts (feeds the leaderboard) ------------------------
 -- Owners can write their own lifts rows, so this trigger applies the same

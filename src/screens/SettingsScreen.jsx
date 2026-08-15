@@ -36,6 +36,7 @@ import {
   DEFAULT_WIDGETS,
   hasBadge,
   isDecorationUnlocked,
+  parseDecorations,
   TIERS,
   WIDGETS,
 } from '../lib/badges'
@@ -107,7 +108,7 @@ export default function SettingsScreen() {
   const [myProfile, setMyProfile] = useState(null)
   const [bio, setBio] = useState('')
   const [widgets, setWidgets] = useState(DEFAULT_WIDGETS)
-  const [decoration, setDecoration] = useState('none')
+  const [equipped, setEquipped] = useState({})
   const [achievementsOpen, setAchievementsOpen] = useState(true)
 
   // Badges are computed from local (unpublished) stats so unlocks react to
@@ -131,7 +132,7 @@ export default function SettingsScreen() {
         setMyProfile(p)
         setBio(p?.bio ?? '')
         setWidgets(p?.widgets?.length ? p.widgets : DEFAULT_WIDGETS)
-        setDecoration(p?.decoration ?? 'none')
+        setEquipped(parseDecorations(p))
       })
       .catch(() => {})
     return () => {
@@ -160,10 +161,17 @@ export default function SettingsScreen() {
     saveProfilePatch({ widgets: next })
   }
 
-  function pickDecoration(id) {
-    if (!isDecorationUnlocked(myBadges, id)) return
-    setDecoration(id)
-    saveProfilePatch({ decoration: id })
+  function pickDecoration(d) {
+    if (!isDecorationUnlocked(myBadges, d.id)) return
+    // One decoration per slot: picking again unequips it; "None" clears rings.
+    const next = { ...equipped }
+    if (d.id === 'none' || next[d.type] === d.id) delete next[d.type]
+    else next[d.type] = d.id
+    setEquipped(next)
+    try {
+      localStorage.setItem('pulse.debug.decoration', JSON.stringify(next))
+    } catch {}
+    saveProfilePatch({ decorations: next })
   }
 
   useEffect(() => {
@@ -367,7 +375,7 @@ export default function SettingsScreen() {
               <div className="flex flex-col gap-2.5 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[14px] font-semibold text-ink">Decorations</span>
-                  <span className="text-[11px] text-faint">Rings, accessories, titles and profile frames — unlocked by achievements</span>
+                  <span className="text-[11px] text-faint">Equip one from each category — unlocked by achievements</span>
                 </div>
                 {DECORATION_TYPES.map(({ type, label }) => (
                   <div key={type} className="flex flex-col gap-1.5">
@@ -375,12 +383,12 @@ export default function SettingsScreen() {
                     <div className={`grid gap-2 ${type === 'frame' || type === 'title' ? 'grid-cols-3' : 'grid-cols-3 md:grid-cols-5'}`}>
                       {DECORATIONS.filter((d) => d.type === type).map((d) => {
                         const unlocked = isDecorationUnlocked(myBadges, d.id)
-                        const active = decoration === d.id
+                        const active = d.id === 'none' ? !equipped.ring : equipped[d.type] === d.id
                         const required = d.requires ? badgeById(d.requires) : null
                         return (
                           <button
                             key={d.id}
-                            onClick={() => pickDecoration(d.id)}
+                            onClick={() => pickDecoration(d)}
                             aria-pressed={active}
                             className={`flex flex-col items-center gap-1.5 rounded-[14px] p-3 outline outline-1 transition-transform active:scale-[0.97] ${
                               active ? 'outline-2 outline-accent' : 'outline-line/10'

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, ShieldCheck, X } from 'lucide-react'
+import { ChevronRight, Dumbbell, Flame, ShieldCheck, Trophy, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { fetchFullProfile } from '../lib/profile'
 import { fetchUserLifts, fetchLiftRanks, buildPlayerExerciseList } from '../lib/leaderboard'
-import { computeBadges, widgetById, DEFAULT_WIDGETS } from '../lib/badges'
+import { computeBadges, widgetById, DEFAULT_WIDGETS, debugDecorationOverride, parseDecorations, TIERS } from '../lib/badges'
 import { DecoratedAvatar, DecorationTitle, initialsOf, DECORATION_FRAMES, DECORATION_TITLES } from './ui'
 
 const WIDGET_VALUE = {
@@ -11,6 +11,59 @@ const WIDGET_VALUE = {
   sessions: (s) => `${s.sessions ?? 0}`,
   streak: (s) => `${s.streak ?? 0}d`,
 }
+
+const WIDGET_ICON = {
+  best: { Icon: Trophy, color: '#F5D061' },
+  sessions: { Icon: Dumbbell, color: '#0485F7' },
+  streak: { Icon: Flame, color: '#FF383C', animated: true },
+}
+
+const WIDGET_DESCRIBE = {
+  best: (s, you) => `${you ? 'Your' : "This athlete's"} heaviest lift is ${s.best ?? 0} kg`,
+  sessions: (s, you) =>
+    `${you ? 'You' : 'This athlete'} finished ${s.sessions ?? 0} workout ${(s.sessions ?? 0) === 1 ? 'day' : 'days'}`,
+  streak: (s, you) =>
+    `${you ? 'You' : 'This athlete'} trained ${(s.streak ?? 0) === 1 ? '1 day' : `${s.streak ?? 0} days`} in a row`,
+}
+
+// Stat tile with an icon and a hover/tap tooltip explaining the number.
+function StatWidget({ w, stats, isYou }) {
+  const [show, setShow] = useState(false)
+  const meta = WIDGET_ICON[w.id]
+  const Icon = meta?.Icon
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="relative flex cursor-default flex-col gap-1 rounded-[16px] bg-surface px-3.5 py-3 outline outline-1 outline-line/10"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onFocus={() => setShow(true)}
+      onBlur={() => setShow(false)}
+      onClick={() => setShow((v) => !v)}
+    >
+      <div className="flex items-center gap-2">
+        {Icon && (
+          <Icon
+            size={18}
+            color={meta.color}
+            className={meta.animated ? 'animate-flame shrink-0' : 'shrink-0'}
+          />
+        )}
+        <span className="text-[16px] font-bold text-soft">{WIDGET_VALUE[w.id](stats)}</span>
+      </div>
+      <span className="text-[11px] text-faint">{w.label}</span>
+      {show && (
+        <div className="absolute left-1/2 top-full z-20 mt-1.5 w-max max-w-[230px] -translate-x-1/2 rounded-[10px] bg-tile px-2.5 py-1.5 text-center text-[10px] leading-snug text-sub shadow-[0px_4px_14px_#00000066] outline outline-1 outline-line/10">
+          {WIDGET_DESCRIBE[w.id]?.(stats, isYou)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Show the 3 most impressive achievements first (legendary > hard > medium > easy).
+const TIER_RANK = { legendary: 0, hard: 1, medium: 2, easy: 3 }
 
 // Full public profile preview. `user` needs at least { user_id }; nickname/pfp
 // are used as placeholders until the full profile row loads.
@@ -52,11 +105,16 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
 
   const stats = profile?.stats ?? {}
   const badges = computeBadges({ stats, isAdmin: !!profile?.is_admin })
+  const adminBadge = badges.find((b) => b.id === 'admin')
+  const topAchievements = [...badges.filter((b) => b.id !== 'admin')]
+    .sort((a, b) => (TIER_RANK[a.tier] ?? 9) - (TIER_RANK[b.tier] ?? 9))
+    .slice(0, 3)
   const widgetIds = profile?.widgets?.length ? profile.widgets : DEFAULT_WIDGETS
   const nickname = profile?.nickname || user?.nickname || 'Athlete'
   const noStatsYet = isYou && !Object.keys(stats).length
-  const frame = DECORATION_FRAMES[profile?.decoration]
-  const title = DECORATION_TITLES[profile?.decoration]
+  const equipped = debugDecorationOverride(isYou) ?? parseDecorations(profile)
+  const frame = DECORATION_FRAMES[equipped.frame]
+  const title = DECORATION_TITLES[equipped.title]
 
   return (
     <div
@@ -70,7 +128,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
         <div className={frame ? 'rounded-[20px] p-4 pb-3' : undefined} style={frame}>
           <div className="flex items-start gap-3.5">
             <DecoratedAvatar
-              decoration={profile?.decoration || null}
+              decoration={equipped}
               initials={initialsOf(nickname)}
               color="#3B3B47"
               size={56}
@@ -78,24 +136,13 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
             />
             <div className="flex flex-1 flex-col gap-1 pt-1">
               <span className={`text-[17px] font-bold ${frame ? 'text-white' : 'text-soft'}`}>{nickname}</span>
-              {title && <DecorationTitle decoration={profile.decoration} size="text-[10px]" />}
-              {badges.length > 0 && (
+              {title && <DecorationTitle decoration={equipped.title} size="text-[10px]" />}
+              {adminBadge && (
                 <div className="flex flex-wrap gap-1">
-                  {badges.map((b) => (
-                    <span
-                      key={b.id}
-                      className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                        b.id === 'admin'
-                          ? 'bg-accent/20 text-accent-light'
-                          : frame
-                            ? 'bg-black/25 text-white'
-                            : 'bg-tile text-sub'
-                      }`}
-                    >
-                      {b.id === 'admin' && <ShieldCheck size={10} color="var(--color-accent)" />}
-                      {b.label}
-                    </span>
-                  ))}
+                  <span className="flex items-center gap-1 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent-light">
+                    <ShieldCheck size={10} color="var(--color-accent)" />
+                    {adminBadge.label}
+                  </span>
                 </div>
               )}
             </div>
@@ -135,18 +182,28 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
                     .map((id) => widgetById(id))
                     .filter(Boolean)
                     .map((w) => (
-                      <div
-                        key={w.id}
-                        className="flex flex-col gap-0.5 rounded-[16px] bg-surface px-3.5 py-3 outline outline-1 outline-line/10"
-                      >
-                        <span className="text-[16px] font-bold text-soft">
-                          {WIDGET_VALUE[w.id](stats)}
-                        </span>
-                        <span className="text-[11px] text-faint">{w.label}</span>
-                      </div>
+                      <StatWidget key={w.id} w={w} stats={stats} isYou={isYou} />
                     ))}
                 </div>
               )
+            )}
+
+            {topAchievements.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold tracking-[1.4px] text-muted">TOP ACHIEVEMENTS</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {topAchievements.map((b) => (
+                    <span
+                      key={b.id}
+                      title={b.hint}
+                      className="rounded-full px-2 py-1 text-[10px] font-semibold"
+                      style={{ background: `${TIERS[b.tier]?.color}22`, color: TIERS[b.tier]?.color }}
+                    >
+                      {b.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
 
             <div className="flex flex-col gap-1">

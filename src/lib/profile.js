@@ -43,7 +43,7 @@ export async function removeAvatar(supabase, userId) {
 export async function fetchFullProfile(supabase, userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, nickname, pfp, bio, decoration, widgets, stats, is_admin')
+    .select('user_id, nickname, pfp, bio, decoration, decorations, widgets, stats, is_admin')
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw error
@@ -55,7 +55,7 @@ export async function fetchProfiles(supabase, userIds) {
   if (!userIds?.length) return {}
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, nickname, pfp, decoration, is_admin')
+    .select('user_id, nickname, pfp, decoration, decorations, is_admin')
     .in('user_id', userIds)
   if (error) throw error
   const map = {}
@@ -64,6 +64,7 @@ export async function fetchProfiles(supabase, userIds) {
       nickname: row.nickname,
       pfp: row.pfp,
       decoration: row.decoration ?? null,
+      decorations: row.decorations ?? null,
       isAdmin: !!row.is_admin,
     }
   }
@@ -75,7 +76,7 @@ export async function fetchProfiles(supabase, userIds) {
 export async function searchProfiles(supabase, query, limit = 8) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, nickname, pfp, decoration')
+    .select('user_id, nickname, pfp, decoration, decorations')
     .ilike('nickname', `%${query}%`)
     .limit(limit)
   if (error) throw error
