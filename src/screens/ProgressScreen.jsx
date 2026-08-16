@@ -353,7 +353,7 @@ export default function ProgressScreen() {
             />
           </div>
           {exOpen && (
-            <div className="absolute inset-x-0 top-[70px] z-10 max-h-[280px] overflow-y-auto rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
+            <div className="glass-panel absolute inset-x-0 top-[70px] z-10 max-h-[280px] overflow-y-auto rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
               {exMatches.length === 0 ? (
                 <div className="flex flex-col items-center gap-1 px-3 py-4 text-center">
                   <Dumbbell size={16} color="var(--color-muted)" />

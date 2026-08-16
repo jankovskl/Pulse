@@ -36,7 +36,7 @@ export default function LeaderboardFilterBar({
           </button>
         )}
         {(searching || showDropdown) && (
-          <div className="absolute inset-x-0 top-[40px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
+          <div className="glass-panel absolute inset-x-0 top-[40px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
             {searching ? (
               <span className="block px-3 py-2 text-[12px] text-faint">Searching…</span>
             ) : results.length ? (

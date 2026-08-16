@@ -125,7 +125,7 @@ export function PlanDayPicker({ date, days, currentId, onPick, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay" onClick={onClose}>
       <div
-        className="flex w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
+        className="glass-panel flex w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">

@@ -156,7 +156,7 @@ export default function AccountEditor() {
                 className="fixed inset-0 z-40"
                 aria-hidden="true"
               />
-              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-[14px] bg-card py-1.5 shadow-[0px_8px_24px_0px_#00000059] outline outline-1 outline-line/10">
+              <div className="glass-panel absolute right-0 top-full z-50 mt-2 w-40 rounded-[14px] bg-card py-1.5 shadow-[0px_8px_24px_0px_#00000059] outline outline-1 outline-line/10">
                 <button
                   type="button"
                   onClick={() => {

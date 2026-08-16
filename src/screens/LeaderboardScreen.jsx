@@ -220,7 +220,7 @@ export default function LeaderboardScreen() {
             <ChevronDown size={16} color="var(--color-faint)" />
           </button>
           {open && (
-            <div className="absolute inset-x-0 top-[70px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
+            <div className="glass-panel absolute inset-x-0 top-[70px] z-10 rounded-[24px] bg-card p-1.5 shadow-[0px_12px_32px_0px_#00000040] outline outline-1 outline-line/10">
               {options.map((e) => {
                 const active = e === current
                 return (

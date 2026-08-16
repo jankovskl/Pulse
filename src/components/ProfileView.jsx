@@ -28,7 +28,8 @@ const WIDGET_DESCRIBE = {
   },
 }
 
-// Stat tile with an icon and a hover/tap tooltip explaining the number.
+// Compact stat pill: icon + value + label inline, with a hover/tap tooltip
+// explaining the number.
 function StatWidget({ w, stats, isYou }) {
   const [show, setShow] = useState(false)
   const meta = WIDGET_ICON[w.id]
@@ -37,23 +38,21 @@ function StatWidget({ w, stats, isYou }) {
     <div
       role="button"
       tabIndex={0}
-      className="relative flex cursor-default flex-col gap-1 rounded-[16px] bg-surface px-3.5 py-3 outline outline-1 outline-line/10"
+      className="relative flex cursor-default items-center gap-2 rounded-full bg-surface px-3 py-1.5 outline outline-1 outline-line/10"
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
       onFocus={() => setShow(true)}
       onBlur={() => setShow(false)}
       onClick={() => setShow((v) => !v)}
     >
-      <div className="flex items-center gap-2">
-        {Icon && (
-          <Icon
-            size={18}
-            color={meta.color}
-            className={meta.animated ? 'animate-flame shrink-0' : 'shrink-0'}
-          />
-        )}
-        <span className="text-[16px] font-bold text-soft">{WIDGET_VALUE[w.id](stats)}</span>
-      </div>
+      {Icon && (
+        <Icon
+          size={14}
+          color={meta.color}
+          className={meta.animated ? 'animate-flame shrink-0' : 'shrink-0'}
+        />
+      )}
+      <span className="text-[13px] font-bold text-soft">{WIDGET_VALUE[w.id](stats)}</span>
       <span className="text-[11px] text-faint">{w.label}</span>
       {show && (
         <div className="absolute left-1/2 top-full z-20 mt-1.5 w-max max-w-[230px] -translate-x-1/2 rounded-[10px] bg-tile px-2.5 py-1.5 text-center text-[10px] leading-snug text-sub shadow-[0px_4px_14px_#00000066] outline outline-1 outline-line/10">
@@ -137,7 +136,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-card p-5 pb-8 md:rounded-[28px]"
+        className="glass-panel flex max-h-[85dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-t-[28px] bg-card p-5 pb-8 md:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className={frame ? 'rounded-[20px] p-4 pb-3' : undefined} style={frame}>
@@ -192,7 +191,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
               </p>
             ) : (
               widgetIds.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {widgetIds
                     .map((id) => widgetById(id))
                     .filter(Boolean)

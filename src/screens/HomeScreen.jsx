@@ -241,7 +241,7 @@ export default function HomeScreen() {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
-          <div className="mx-4 flex w-[320px] flex-col gap-4 rounded-[24px] bg-card p-6">
+          <div className="glass-panel mx-4 flex w-[320px] flex-col gap-4 rounded-[24px] bg-card p-6">
             <span className="text-[16px] font-semibold text-soft">
               Delete {confirmDelete.name}?
             </span>

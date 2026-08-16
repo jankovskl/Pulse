@@ -730,7 +730,7 @@ export default function SettingsScreen() {
           onClick={() => setSheetOpen(false)}
         >
           <div
-            className="flex max-h-[70dvh] w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
+            className="glass-panel flex max-h-[70dvh] w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">

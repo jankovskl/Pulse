@@ -458,7 +458,7 @@ export function Modal({ open, onClose, children }) {
       <div
         ref={panelRef}
         style={{ transform: `translateY(${shift}px)`, transition: 'transform 160ms ease-out' }}
-        className="max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8"
+        className="glass-panel max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
