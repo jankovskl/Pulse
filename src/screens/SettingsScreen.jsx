@@ -12,6 +12,7 @@ import {
   CloudOff,
   Database,
   Download,
+  HelpCircle,
   Lock,
   Palette,
   Pencil,
@@ -44,14 +45,16 @@ import { deriveStats, fetchFullProfile, saveProfile } from '../lib/profile'
 import AuthModal from '../components/AuthModal'
 import AccountEditor from '../components/AccountEditor'
 import { Avatar, DecoratedAvatar, DecorationTitle, DECORATION_FRAMES, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
+import { useTutorial } from '../lib/tutorial'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#A855F7', '#FF383C', '#0485F7']
 
-function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15' }) {
+function Row({ icon, title, subtitle, right, onClick, iconBg = 'bg-accent/15', tutorial }) {
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-[16px] bg-card px-3.5 py-3 text-left shadow-[0px_2px_6px_0px_#0000000F]"
+      data-tutorial={tutorial}
+      className="flex w-full items-center gap-3 rounded-[16px] bg-card px-3.5 py-3 text-left"
     >
       <div className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${iconBg}`}>{icon}</div>
       <div className="flex flex-1 flex-col leading-tight">
@@ -93,6 +96,7 @@ function ThemeSwatch({ t, active, onPick }) {
 export default function SettingsScreen() {
   const store = useStore()
   const auth = useAuth()
+  const { resetTutorial } = useTutorial()
   const fileRef = useRef(null)
   const authDialog = useDialog()
   const signOutDialog = useDialog()
@@ -610,6 +614,7 @@ export default function SettingsScreen() {
             icon={<Sparkles size={15} color="var(--color-accent)" />}
             title="Customize profile"
             subtitle="Account, bio, widgets & avatar decoration"
+            tutorial="settings-profile"
             onClick={() => setView('profile')}
           />
         </div>
@@ -684,6 +689,7 @@ export default function SettingsScreen() {
             icon={<Palette size={15} color="var(--color-accent)" />}
             title="Appearance"
             subtitle={themeById(store.settings.theme).name}
+            tutorial="settings-theme"
             onClick={() => setView('appearance')}
             right={
               <span
@@ -701,6 +707,17 @@ export default function SettingsScreen() {
             subtitle="A little cat keeps you company"
             right={<Toggle on={store.settings.neko} onChange={(v) => store.setSettings({ neko: v })} />}
           />
+          {auth.user && (
+            <Row
+              icon={<HelpCircle size={15} color="var(--color-accent)" />}
+              title="Restart Tutorial"
+              subtitle="Show the app tour again"
+              onClick={() => {
+                resetTutorial(auth.user.id)
+                window.location.reload()
+              }}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-2.5">

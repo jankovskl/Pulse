@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useStore } from './store'
+import { usePresence } from './presenceProvider'
 
 const TKEY = 'pulse.timer.v1'
 const SKEY = 'pulse.session.v1'
@@ -30,7 +31,13 @@ function loadSession() {
     if (!raw) return null
     const s = JSON.parse(raw)
     if (typeof s.dayId !== 'string') return null
-    return { dayId: s.dayId, exIdx: typeof s.exIdx === 'number' ? s.exIdx : 0, set: typeof s.set === 'number' ? s.set : 1 }
+    return {
+      dayId: s.dayId,
+      exIdx: typeof s.exIdx === 'number' ? s.exIdx : 0,
+      set: typeof s.set === 'number' ? s.set : 1,
+      startedAt: s.startedAt || null,
+      justCompletedId: s.justCompletedId || null
+    }
   } catch {
     return null
   }
@@ -38,6 +45,7 @@ function loadSession() {
 
 export function TimerProvider({ children }) {
   const store = useStore()
+  const presence = usePresence()
   const [total, setTotal] = useState(180)
   const [left, setLeft] = useState(180)
   const [endsAt, setEndsAt] = useState(null)
@@ -45,6 +53,7 @@ export function TimerProvider({ children }) {
   const [paused, setPaused] = useState(false)
   const [notify, setNotifyState] = useState(store.settings.notify)
   const [session, setSession] = useState(loadSession)
+  const [showSummary, setShowSummary] = useState(false)
   const sessionRef = useRef(session)
   useEffect(() => {
     sessionRef.current = session
@@ -81,6 +90,11 @@ export function TimerProvider({ children }) {
     let next = s.exIdx + 1
     while (next < day.exercises.length && day.exercises[next].done) next++
     if (next >= day.exercises.length) {
+      // Check if all exercises are now done - show summary
+      const allDone = day.exercises.every((e) => e.done)
+      if (allDone && s.startedAt) {
+        setShowSummary(true)
+      }
       setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
       return
     }
@@ -168,6 +182,33 @@ export function TimerProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.dayId, session?.exIdx, store.days])
 
+  // Update presence when workout session changes
+  useEffect(() => {
+    if (!presence) return
+
+    if (session && session.startedAt) {
+      const day = store.days.find((d) => d.id === session.dayId)
+      if (day) {
+        const currentEx = day.exercises[session.exIdx]
+        const exercisesDone = day.exercises.filter((e) => e.done).length
+        const exercisesTotal = day.exercises.length
+
+        presence.updateWorkoutStatus({
+          dayId: session.dayId,
+          dayName: day.name,
+          currentExercise: currentEx?.name || null,
+          startedAt: session.startedAt,
+          exercisesDone,
+          exercisesTotal,
+        })
+      }
+    } else {
+      // No active workout, set to online only
+      presence.updateWorkoutStatus(null)
+    }
+  }, [session, store.days, presence])
+
+
   useEffect(() => {
     if (!running || paused) return
     const id = setInterval(() => {
@@ -246,21 +287,30 @@ export function TimerProvider({ children }) {
     store.setSettings({ notify: v })
   }
 
-   function setDay(dayId) {
+  function setDay(dayId) {
     const day = storeRef.current.days.find((d) => d.id === dayId)
+    const currentSession = sessionRef.current
+    const startedAt = currentSession?.dayId === dayId && currentSession?.startedAt
+      ? currentSession.startedAt
+      : Date.now()
+
     if (!day || !day.exercises.length) {
-      setSession({ dayId, exIdx: 0, set: 1, justCompletedId: null })
+      setSession({ dayId, exIdx: 0, set: 1, justCompletedId: null, startedAt })
       return
     }
     const first = day.exercises.findIndex((e) => !e.done)
     const idx = first === -1 ? 0 : first
-    setSession({ dayId, exIdx: idx, set: 1, justCompletedId: null })
+    setSession({ dayId, exIdx: idx, set: 1, justCompletedId: null, startedAt })
     storeRef.current.setLastActiveExercise(day.exercises[idx]?.name ?? null)
+  }
+
+  function closeSummary() {
+    setShowSummary(false)
   }
 
   return (
     <TimerCtx.Provider
-      value={{ total, left, running, paused, notify, session, start, toggle, reset, setNotify, setDay, endWorkout }}
+      value={{ total, left, running, paused, notify, session, showSummary, start, toggle, reset, setNotify, setDay, endWorkout, closeSummary }}
     >
       {children}
     </TimerCtx.Provider>

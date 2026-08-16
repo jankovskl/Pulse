@@ -74,6 +74,7 @@ export function TabDock({ active }) {
             <button
               key={t.key}
               onClick={() => nav.go(t.key === 'progress' ? 'progress' : t.key)}
+              data-tutorial={`${t.key}-tab`}
               className={`flex h-fit flex-1 flex-col items-center justify-center gap-0.5 rounded-[9999px] p-[4px_10px] transition-colors ${
                 isActive ? 'bg-accent/15' : ''
               }`}
@@ -121,6 +122,7 @@ export function Sidebar({ active }) {
           <button
             key={t.key}
             onClick={() => nav.go(t.key === 'progress' ? 'progress' : t.key)}
+            data-tutorial={`${t.key}-tab`}
             className={`flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition-colors ${
               isActive ? 'bg-accent/15' : 'hover:bg-tile/60'
             }`}

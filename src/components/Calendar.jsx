@@ -16,6 +16,7 @@ export function WorkoutCalendar({
   onPickDay,
   compact = false,
   lockNext = false,
+  tutorial,
 }) {
   const year = cursor.getFullYear()
   const month = cursor.getMonth()
@@ -66,7 +67,7 @@ export function WorkoutCalendar({
           <ChevronRight size={compact ? 12 : 14} color="var(--color-sub)" />
         </button>
       </div>
-      <div className={`grid grid-cols-7 ${compact ? 'gap-0.5' : 'gap-1'}`}>
+      <div className={`grid grid-cols-7 ${compact ? 'gap-0.5' : 'gap-1'}`} data-tutorial={tutorial}>
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((w, i) => (
           <span key={i} className={`pb-0.5 text-center font-semibold text-muted ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
             {w}

@@ -423,7 +423,10 @@ export default function ProgressScreen() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10">
+        <div
+          className="flex flex-col gap-3 rounded-[20px] bg-surface p-4 outline outline-1 outline-line/10"
+          data-tutorial="progress-chart"
+        >
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-semibold text-ink">Weight (kg)</span>
             <span className="rounded-full bg-good/15 px-2 py-0.5 text-[11px] font-medium text-good">

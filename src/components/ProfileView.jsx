@@ -5,6 +5,8 @@ import { fetchFullProfile } from '../lib/profile'
 import { fetchUserLifts, fetchLiftRanks, buildPlayerExerciseList } from '../lib/leaderboard'
 import { computeBadges, widgetById, DEFAULT_WIDGETS, debugDecorationOverride, parseDecorations, TIERS } from '../lib/badges'
 import { DecoratedAvatar, DecorationTitle, initialsOf, DECORATION_FRAMES, DECORATION_TITLES } from './ui'
+import { UserStatus, WorkoutStatusCard } from './UserStatusDisplay'
+import { fetchPresence, subscribeToPresence } from '../lib/presence'
 
 const WIDGET_VALUE = {
   best: (s) => `${s.best ?? 0} kg`,
@@ -73,6 +75,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
   const [profile, setProfile] = useState(null)
   const [lifts, setLifts] = useState(null)
   const [liftQuery, setLiftQuery] = useState('')
+  const [presence, setPresence] = useState(null)
 
   useEffect(() => {
     setLiftQuery('')
@@ -86,18 +89,21 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
     let active = true
     const load = async () => {
       try {
-        const [full, liftList] = await Promise.all([
+        const [full, liftList, presenceData] = await Promise.all([
           fetchFullProfile(supabase, user.user_id),
           fetchUserLifts(supabase, user.user_id),
+          fetchPresence(supabase, [user.user_id]),
         ])
         const ranks = await fetchLiftRanks(supabase, liftList)
         if (!active) return
         setProfile(full)
         setLifts(buildPlayerExerciseList(liftList, ranks))
+        setPresence(presenceData[user.user_id] || null)
       } catch {
         if (active) {
           setProfile(null)
           setLifts([])
+          setPresence(null)
         }
       } finally {
         if (active) setLoading(false)
@@ -106,6 +112,25 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
     load()
     return () => {
       active = false
+    }
+  }, [user?.user_id])
+
+  // Subscribe to real-time presence updates
+  useEffect(() => {
+    if (!supabase || !user?.user_id) return
+
+    const unsubscribe = subscribeToPresence(supabase, [user.user_id], (newPresence) => {
+      if (newPresence.user_id === user.user_id) {
+        setPresence({
+          status: newPresence.status,
+          lastSeen: newPresence.last_seen,
+          workoutData: newPresence.workout_data,
+        })
+      }
+    })
+
+    return () => {
+      if (unsubscribe) unsubscribe()
     }
   }, [user?.user_id])
 
@@ -177,6 +202,16 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
             Add a bio to your profile in Settings.
           </p>
         ) : null}
+
+        {/* Show status for everyone (including yourself) if presence data exists */}
+        <UserStatus
+          status={presence?.status || 'offline'}
+          workoutData={presence?.workoutData}
+        />
+
+        {presence?.status === 'working_out' && presence?.workoutData && (
+          <WorkoutStatusCard workoutData={presence.workoutData} />
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-6">

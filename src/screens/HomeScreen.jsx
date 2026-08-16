@@ -51,7 +51,7 @@ export default function HomeScreen() {
   const today = new Date()
   const days = store.days
 
-  const week = useMemo(() => weekOf(today), [])
+  const week = useMemo(() => weekOf(new Date()), [])
 
   const totalExercises = days.reduce((n, d) => n + d.exercises.length, 0)
   const trainingDays = days.filter((d) => d.exercises.length > 0)
@@ -81,7 +81,7 @@ export default function HomeScreen() {
 
   return (
     <Screen activeTab="home">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-tutorial="home-screen">
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -97,7 +97,7 @@ export default function HomeScreen() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-tutorial="home-week">
           <div className="flex items-center justify-between">
             <span className="text-[14px] font-semibold text-soft">This Week</span>
             <div className="flex items-center gap-2.5">
@@ -128,7 +128,7 @@ export default function HomeScreen() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-tutorial="home-split">
           {days.map((d) => (
             <div
               key={d.id}

@@ -60,6 +60,7 @@ export default function CalendarScreen() {
             plan={store.plan}
             daysById={daysById}
             onPickDay={(date) => setPickDate(date)}
+            tutorial="calendar-grid"
           />
         </div>
 

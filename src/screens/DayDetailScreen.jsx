@@ -4,7 +4,6 @@ import {
   CircleCheck,
   GripVertical,
   Minus,
-  Pencil,
   Play,
   Plus,
   Square,
@@ -13,6 +12,7 @@ import {
 import { useStore } from '../lib/store'
 import { useTimer } from '../lib/timer'
 import { Screen, useNav } from '../components/ui'
+import WorkoutSummary from '../components/WorkoutSummary'
 
 function Stepper({ label, value, min = 0, step = 1, onChange }) {
   const [editing, setEditing] = useState(false)
@@ -77,6 +77,7 @@ export default function DayDetailScreen() {
   const [dragIdx, setDragIdx] = useState(null)
   const [dropIdx, setDropIdx] = useState(null)
   const [confirmStop, setConfirmStop] = useState(false)
+  const [showSummary, setShowSummary] = useState(false)
 
   if (!day) return <Screen activeTab="home" />
 
@@ -104,11 +105,27 @@ export default function DayDetailScreen() {
   }
 
   function toggle(e) {
+    const wasAllDone = day.exercises.every((ex) => ex.done)
+
+    // Check if this toggle will complete the workout (before toggling)
+    const willBeAllDone = day.exercises.every((ex) =>
+      ex.id === e.id ? !ex.done : ex.done
+    )
+
     store.toggleExercise(day.id, e.id)
+
+    // Show summary if we just completed all exercises and have an active session
+    if (!wasAllDone && willBeAllDone && timer.session?.dayId === day.id && timer.session?.startedAt) {
+      // Use setTimeout to ensure state updates have processed
+      setTimeout(() => setShowSummary(true), 100)
+    }
   }
 
   return (
     <Screen activeTab="home">
+      {showSummary && day && timer.session && (
+        <WorkoutSummary day={day} session={timer.session} onClose={() => setShowSummary(false)} />
+      )}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <button

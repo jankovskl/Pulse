@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { StoreProvider, useStore } from './lib/store'
-import { AuthProvider } from './lib/auth'
+import { AuthProvider, useAuth } from './lib/auth'
 import { TimerProvider } from './lib/timer'
+import { PresenceProvider } from './lib/presenceProvider'
 import { DEFAULT_THEME } from './lib/themes'
 import { NavProvider, useNav } from './components/ui'
+import Tutorial from './components/Tutorial'
+import { useTutorial } from './lib/tutorial'
 import HomeScreen from './screens/HomeScreen'
 import DayDetailScreen from './screens/DayDetailScreen'
 import LibraryScreen from './screens/LibraryScreen'
@@ -15,25 +18,53 @@ import CalendarScreen from './screens/CalendarScreen'
 
 function Router() {
   const nav = useNav()
-  switch (nav.name) {
-    case 'day':
-      return <DayDetailScreen />
-    case 'library':
-      return <LibraryScreen />
-    case 'timer':
-      return <TimerScreen />
-    case 'progress':
-      return <ProgressScreen />
-    case 'settings':
-      return <SettingsScreen />
-    case 'leaderboard':
-      return <LeaderboardScreen />
-    case 'calendar':
-      return <CalendarScreen />
-    case 'home':
-    default:
-      return <HomeScreen />
+  const auth = useAuth()
+  const { shouldShowTutorial, completeTutorial } = useTutorial()
+  const [showTutorial, setShowTutorial] = useState(false)
+
+  useEffect(() => {
+    // Tutorial is account-scoped: only show for signed-in users who haven't
+    // completed it yet (e.g. right after first login on a new account).
+    if (!auth.user) {
+      setShowTutorial(false)
+      return
+    }
+    if (shouldShowTutorial(auth.user.id)) {
+      setShowTutorial(true)
+    }
+  }, [auth.user, shouldShowTutorial])
+
+  const handleTutorialComplete = () => {
+    if (auth.user) completeTutorial(auth.user.id)
+    setShowTutorial(false)
   }
+
+  return (
+    <>
+      {showTutorial && <Tutorial onComplete={handleTutorialComplete} />}
+      {(() => {
+        switch (nav.name) {
+          case 'day':
+            return <DayDetailScreen />
+          case 'library':
+            return <LibraryScreen />
+          case 'timer':
+            return <TimerScreen />
+          case 'progress':
+            return <ProgressScreen />
+          case 'settings':
+            return <SettingsScreen />
+          case 'leaderboard':
+            return <LeaderboardScreen />
+          case 'calendar':
+            return <CalendarScreen />
+          case 'home':
+          default:
+            return <HomeScreen />
+        }
+      })()}
+    </>
+  )
 }
 
 const ACCENT_LIGHT = {
@@ -112,11 +143,13 @@ function App() {
       <StoreProvider>
         <ThemeSync />
         <NekoCat />
-        <TimerProvider>
-          <NavProvider>
-            <Router />
-          </NavProvider>
-        </TimerProvider>
+        <PresenceProvider>
+          <TimerProvider>
+            <NavProvider>
+              <Router />
+            </NavProvider>
+          </TimerProvider>
+        </PresenceProvider>
       </StoreProvider>
     </AuthProvider>
   )

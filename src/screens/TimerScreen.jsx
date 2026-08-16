@@ -4,12 +4,13 @@ import { dateKey, REST_PRESETS } from '../lib/data'
 import { fmt, useTimer } from '../lib/timer'
 import { useStore } from '../lib/store'
 import { Screen, SectionLabel, useNav } from '../components/ui'
+import WorkoutSummary from '../components/WorkoutSummary'
 
 export default function TimerScreen() {
   const timer = useTimer()
   const store = useStore()
   const nav = useNav()
-  const { total, left, running, paused, session, start, toggle, reset, setDay } = timer
+  const { total, left, running, paused, session, showSummary, start, toggle, reset, setDay, closeSummary } = timer
 
   useEffect(() => {
     if (nav.dayId && session?.dayId !== nav.dayId) setDay(nav.dayId)
@@ -42,6 +43,9 @@ export default function TimerScreen() {
 
   return (
     <Screen activeTab="timer">
+      {showSummary && day && session && (
+        <WorkoutSummary day={day} session={session} onClose={closeSummary} />
+      )}
       <div className="flex flex-col items-center gap-5 md:mx-auto md:w-full md:max-w-[520px]">
         <h1 className="self-start text-[26px] font-bold text-ink">Rest Timer</h1>
 
@@ -94,7 +98,7 @@ export default function TimerScreen() {
           </div>
         )}
 
-        <div className="relative flex h-[320px] w-[320px] items-center justify-center overflow-hidden rounded-full">
+        <div className="relative flex h-[320px] w-[320px] items-center justify-center overflow-hidden rounded-full" data-tutorial="timer-ring">
           <svg width="280" height="280" viewBox="0 0 280 280" className="-rotate-90">
             <defs>
               <radialGradient id="ringHalo" cx="50%" cy="50%" r="50%">
@@ -152,7 +156,7 @@ export default function TimerScreen() {
 
         <div className="flex w-full flex-col gap-2.5">
           <SectionLabel>QUICK PRESETS</SectionLabel>
-          <div className="flex w-full items-center justify-between">
+          <div className="flex w-full items-center justify-between" data-tutorial="timer-presets">
             {REST_PRESETS.map((p) => (
               <button
                 key={p.label}

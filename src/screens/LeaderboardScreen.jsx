@@ -268,8 +268,9 @@ export default function LeaderboardScreen() {
             className={`flex flex-col gap-5 ${
               !auth.user ? 'pointer-events-none select-none blur-[8px]' : ''
             }`}
+            data-tutorial="leaderboard-list"
           >
-            <div className="flex items-end justify-center gap-2.5 pt-4">
+            <div className="flex items-end justify-center gap-2.5 pt-4" data-tutorial="leaderboard-top3">
               {[top3[1], top3[0], top3[2]].filter(Boolean).map((r) => (
                 <button
                   key={r.name}
