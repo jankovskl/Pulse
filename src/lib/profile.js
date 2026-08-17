@@ -129,6 +129,34 @@ export function currentStreakOf(dates, today = new Date()) {
   return streak
 }
 
+// Local YYYY-MM-DD key for a Date (matches data.js dateKey, i.e. the keys the
+// calendar plan uses). Kept private here so the streak/week helpers stay
+// self-contained and unit-testable.
+const localKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// The 7 local date keys (Mon..Sun) of the week containing `today` — the same
+// week the Home screen strip shows.
+export function weekKeysOf(today = new Date()) {
+  const monday = new Date(today)
+  const offset = (today.getDay() + 6) % 7
+  monday.setDate(today.getDate() - offset)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return localKey(d)
+  })
+}
+
+// Unique training days logged inside the current week (feeds the weekly goal
+// card). Sessions carry their date in `full` (YYYY-MM-DD).
+export function workoutsInWeek(sessions, today = new Date()) {
+  const keys = new Set(weekKeysOf(today))
+  return new Set(
+    (sessions ?? []).map((s) => s.full).filter((d) => d && keys.has(d)),
+  ).size
+}
+
 // Derive the public stats blob from local state (pure, unit-testable).
 export function deriveStats(state) {
   const sessions = state?.sessions ?? []

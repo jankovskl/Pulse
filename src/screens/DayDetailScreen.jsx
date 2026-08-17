@@ -160,7 +160,7 @@ export default function DayDetailScreen() {
             <div className="h-1 rounded bg-line/5">
               <div
                 className="h-1 rounded bg-accent/15"
-                style={{ width: `${pct}%`, background: pct === 100 ? '#17C964' : 'var(--color-accent)' }}
+                style={{ width: `${pct}%`, background: pct === 100 ? '#17C964' : 'var(--color-accent)', transition: 'width 300ms cubic-bezier(0.23, 1, 0.32, 1), background 200ms ease-out' }}
               />
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function DayDetailScreen() {
                 setDragIdx(null)
                 setDropIdx(null)
               }}
-              className={`flex flex-col gap-3 rounded-[20px] p-4 transition-opacity md:flex-row md:items-center md:justify-between ${
+              className={`flex flex-col gap-3 rounded-[20px] p-4 transition-colors duration-200 transition-opacity md:flex-row md:items-center md:justify-between ${
                 dragIdx === i ? 'opacity-40' : ''
               } ${
                 e.done ? 'bg-good/15' : 'bg-surface outline outline-1 outline-line/10'

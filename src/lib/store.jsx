@@ -30,7 +30,7 @@ const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark' },
+  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', weeklyGoal: 4 },
   lastActiveExercise: null,
   totals: { sessions: 0, lastSessionDay: null },
 }

@@ -135,10 +135,15 @@ export default function WorkoutSummary({ day, session, onClose }) {
             EXERCISES COMPLETED
           </span>
           <div className="flex max-h-[200px] flex-col gap-2 overflow-y-auto">
-            {completedExercises.map((e) => (
+            {completedExercises.map((e, idx) => (
               <div
                 key={e.id}
-                className="flex items-center justify-between rounded-[12px] bg-tile px-3 py-2"
+                className="flex items-center justify-between rounded-[12px] bg-tile px-3 py-2 transition-all duration-200 ease-out"
+                style={{
+                  transitionDelay: `${idx * 40}ms`,
+                  opacity: show ? 1 : 0,
+                  transform: show ? 'translateY(0)' : 'translateY(6px)',
+                }}
               >
                 <div className="flex flex-col">
                   <span className="text-[13px] font-medium text-soft">{e.name}</span>

@@ -201,7 +201,7 @@ export function Toggle({ on, onChange }) {
   return (
     <button
       onClick={() => onChange(!on)}
-      className={`relative h-[20px] w-[40px] rounded-full transition-colors ${
+      className={`relative h-[20px] w-[40px] rounded-full transition-colors active:scale-95 ${
         on ? 'bg-accent' : 'bg-tile'
       }`}
     >
@@ -459,8 +459,8 @@ export function Modal({ open, onClose, children }) {
     >
       <div
         ref={panelRef}
-        style={{ transform: `translateY(${shift}px)`, transition: 'transform 160ms ease-out' }}
-        className="glass-panel max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8"
+        className="glass-panel max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8 transition-all duration-200"
+        style={{ transform: `translateY(${shift}px)` }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

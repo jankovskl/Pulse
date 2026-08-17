@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Activity, CalendarDays, MoonStar, Plus, Trash2, X } from 'lucide-react'
+import { Activity, CalendarDays, Check, Flame, MoonStar, Plus, Target, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { dateKey, WEEKDAY_NAMES } from '../lib/data'
+import { currentStreakOf, workoutsInWeek } from '../lib/profile'
 import { Chip, Modal, Screen, useNav } from '../components/ui'
 import { PlanDayPicker } from '../components/Calendar'
 
@@ -40,18 +41,86 @@ function DayTile({ date, today, onOpen, planned }) {
   )
 }
 
+const GOAL_OPTIONS = [1, 2, 3, 4, 5, 6, 7]
+
+function StreakCard({ streak, done, goal, onEditGoal }) {
+  const pct = goal > 0 ? Math.min(1, done / goal) : 0
+  const hit = goal > 0 && done >= goal
+  return (
+    <div className="flex items-center gap-4 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A]">
+      <div className="flex shrink-0 items-center gap-3">
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-full ${
+            streak > 0 ? 'bg-accent/15' : 'bg-tile'
+          }`}
+        >
+          <Flame
+            size={20}
+            color={streak > 0 ? 'var(--color-accent)' : 'var(--color-muted)'}
+            strokeWidth={2.25}
+          />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[16px] font-semibold leading-none text-soft">
+            {streak > 0 ? `${streak} ${streak === 1 ? 'day' : 'days'}` : 'No streak'}
+          </span>
+          <span className="text-[11px] text-sub">
+            {streak > 0 ? 'current streak' : 'train today to start one'}
+          </span>
+        </div>
+      </div>
+      <div className="h-9 w-px shrink-0 bg-line/10" />
+      <button onClick={onEditGoal} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-sub">
+            <Target size={12} color="var(--color-sub)" />
+            Weekly goal
+          </span>
+          <span
+            className={`flex items-center gap-1 text-[12px] font-semibold ${
+              hit ? 'text-good' : 'text-soft'
+            }`}
+          >
+            {hit && <Check size={12} color="var(--color-good)" strokeWidth={3} />}
+            {done}/{goal}
+          </span>
+        </div>
+        <div className="h-[6px] w-full overflow-hidden rounded-full bg-tile">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              hit ? 'bg-good' : 'bg-accent'
+            }`}
+            style={{ width: `${pct * 100}%` }}
+          />
+        </div>
+      </button>
+    </div>
+  )
+}
+
 export default function HomeScreen() {
   const store = useStore()
   const nav = useNav()
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [confirmShow, setConfirmShow] = useState(false)
   const [pickDate, setPickDate] = useState(null)
+  const [editingGoal, setEditingGoal] = useState(false)
 
   const today = new Date()
   const days = store.days
 
   const week = useMemo(() => weekOf(new Date()), [])
+
+  // Streak + weekly goal: same grace-day rules as the profile badges, so the
+  // card and the achievements never disagree.
+  const streak = useMemo(
+    () => currentStreakOf(store.sessions.map((s) => s.full).filter(Boolean)),
+    [store.sessions],
+  )
+  const weekDone = useMemo(() => workoutsInWeek(store.sessions), [store.sessions])
+  const weeklyGoal = store.settings.weeklyGoal ?? 4
 
   const totalExercises = days.reduce((n, d) => n + d.exercises.length, 0)
   const trainingDays = days.filter((d) => d.exercises.length > 0)
@@ -128,6 +197,13 @@ export default function HomeScreen() {
           </span>
         </div>
 
+        <StreakCard
+          streak={streak}
+          done={weekDone}
+          goal={weeklyGoal}
+          onEditGoal={() => setEditingGoal(true)}
+        />
+
         <div className="flex flex-col gap-3" data-tutorial="home-split">
           {days.map((d) => (
             <div
@@ -150,6 +226,8 @@ export default function HomeScreen() {
                     onClick={(e) => {
                       e.stopPropagation()
                       setConfirmDelete(d)
+                      setConfirmShow(false)
+                      setTimeout(() => setConfirmShow(true), 50)
                     }}
                     aria-label={`Delete ${d.name}`}
                     className="flex h-9 w-9 items-center justify-center rounded-3xl"
@@ -228,6 +306,50 @@ export default function HomeScreen() {
         </div>
       </Modal>
 
+      <Modal open={editingGoal} onClose={() => setEditingGoal(false)}>
+        <div className="flex flex-col gap-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                <Target size={18} color="var(--color-accent)" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-medium text-soft">Weekly goal</span>
+                <span className="text-[12px] text-sub">How many days you aim to train</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setEditingGoal(false)}
+              className="flex h-6 w-6 items-center justify-center rounded-[12px] bg-tile"
+            >
+              <X size={16} color="var(--color-sub)" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {GOAL_OPTIONS.map((n) => {
+              const active = n === weeklyGoal
+              return (
+                <button
+                  key={n}
+                  onClick={() => {
+                    store.setSettings({ weeklyGoal: n })
+                    setEditingGoal(false)
+                  }}
+                  className={`flex h-11 items-center justify-center rounded-[12px] text-[14px] font-semibold transition-colors ${
+                    active ? 'bg-accent text-white' : 'bg-tile text-soft active:bg-line/10'
+                  }`}
+                >
+                  {n}
+                </button>
+              )
+            })}
+          </div>
+          <span className="text-center text-[11px] text-muted">
+            You've done {weekDone} {weekDone === 1 ? 'day' : 'days'} this week
+          </span>
+        </div>
+      </Modal>
+
       <PlanDayPicker
         date={pickDate}
         days={days}
@@ -240,8 +362,16 @@ export default function HomeScreen() {
       />
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
-          <div className="glass-panel mx-4 flex w-[320px] flex-col gap-4 rounded-[24px] bg-card p-6">
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 transition-opacity duration-200 ${
+            confirmShow ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <div
+            className={`glass-panel mx-4 flex w-[320px] flex-col gap-4 rounded-[24px] bg-card p-6 transition-all duration-200 ${
+              confirmShow ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+            }`}
+          >
             <span className="text-[16px] font-semibold text-soft">
               Delete {confirmDelete.name}?
             </span>
@@ -251,7 +381,10 @@ export default function HomeScreen() {
             </span>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => {
+                  setConfirmShow(false)
+                  setTimeout(() => setConfirmDelete(null), 200)
+                }}
                 className="h-8 rounded-[24px] bg-tile px-4 text-[13px] text-soft"
               >
                 Keep
@@ -259,7 +392,8 @@ export default function HomeScreen() {
               <button
                 onClick={() => {
                   store.deleteDay(confirmDelete.id)
-                  setConfirmDelete(null)
+                  setConfirmShow(false)
+                  setTimeout(() => setConfirmDelete(null), 200)
                 }}
                 className="h-8 rounded-[24px] bg-[#F2606E] px-4 text-[13px] text-white"
               >
