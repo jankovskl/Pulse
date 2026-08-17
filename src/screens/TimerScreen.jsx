@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { ArrowRight, CircleCheck, MoonStar, RotateCcw } from 'lucide-react'
 import { dateKey, REST_PRESETS } from '../lib/data'
 import { fmt, useTimer } from '../lib/timer'
@@ -10,6 +10,7 @@ export default function TimerScreen() {
   const timer = useTimer()
   const store = useStore()
   const nav = useNav()
+  const [showGym, setShowGym] = useState(false)
   const { total, left, running, paused, session, showSummary, start, toggle, reset, setDay, closeSummary } = timer
 
   useEffect(() => {

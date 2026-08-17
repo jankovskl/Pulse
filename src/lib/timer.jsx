@@ -239,7 +239,8 @@ export function TimerProvider({ children }) {
     setEndsAt(Date.now() + t * 1000)
     setRunning(true)
     setPaused(false)
-    setSession((s) => (s ? { ...s, startedAt: s.startedAt ?? Date.now(), justCompletedId: null } : s))
+    // Only update startedAt if it's not already set (preserve workout start time)
+    setSession((s) => (s ? { ...s, startedAt: s.startedAt, justCompletedId: null } : s))
     if (notify && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }

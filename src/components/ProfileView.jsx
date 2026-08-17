@@ -98,7 +98,19 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
         if (!active) return
         setProfile(full)
         setLifts(buildPlayerExerciseList(liftList, ranks))
-        setPresence(presenceData[user.user_id] || null)
+        // Check if presence is stale (>5 minutes old) - force offline
+        const presenceRow = presenceData[user.user_id]
+        if (presenceRow) {
+          const lastSeen = new Date(presenceRow.lastSeen)
+          const isStale = Date.now() - lastSeen.getTime() > 5 * 60 * 1000
+          setPresence({
+            status: isStale ? 'offline' : presenceRow.status,
+            lastSeen: presenceRow.lastSeen,
+            workoutData: presenceRow.workoutData,
+          })
+        } else {
+          setPresence(null)
+        }
       } catch {
         if (active) {
           setProfile(null)
@@ -121,8 +133,13 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
 
     const unsubscribe = subscribeToPresence(supabase, [user.user_id], (newPresence) => {
       if (newPresence.user_id === user.user_id) {
+        // Check if presence is stale (>5 minutes old) - force offline
+        const lastSeen = new Date(newPresence.last_seen)
+        const isStale = Date.now() - lastSeen.getTime() > 5 * 60 * 1000
+        const status = isStale ? 'offline' : newPresence.status
+        
         setPresence({
-          status: newPresence.status,
+          status,
           lastSeen: newPresence.last_seen,
           workoutData: newPresence.workout_data,
         })
@@ -206,6 +223,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
         {/* Show status for everyone (including yourself) if presence data exists */}
         <UserStatus
           status={presence?.status || 'offline'}
+          lastSeen={presence?.lastSeen}
           workoutData={presence?.workoutData}
         />
 

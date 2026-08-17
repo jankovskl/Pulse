@@ -10,36 +10,48 @@ export function PresenceProvider({ children }) {
   const isWorkingOutRef = useRef(false)
   const workoutDataRef = useRef(null)
 
-  // Send presence heartbeat every 2 minutes
+  // Send presence heartbeat every 2 minutes.
+  // The interval tick is skipped when the window is hidden so we stop
+  // refreshing last_seen while the user is away — after 5 minutes with no
+  // heartbeat, friends will see the stale-presence check kick in and show
+  // the user as offline. When the window comes back into focus we fire
+  // immediately so the status updates without waiting for the next tick.
   useEffect(() => {
     const userId = getUserId()
     if (!supabase || !userId) return
 
     const sendHeartbeat = async () => {
       try {
-        const userId = getUserId()
-        if (!userId) return
-
+        const uid = getUserId()
+        if (!uid) return
         if (isWorkingOutRef.current && workoutDataRef.current) {
-          await setWorkingOut(supabase, userId, workoutDataRef.current)
+          await setWorkingOut(supabase, uid, workoutDataRef.current)
         } else {
-          await setOnline(supabase, userId)
+          await setOnline(supabase, uid)
         }
       } catch (err) {
         console.error('Presence heartbeat failed:', err)
       }
     }
 
-    // Initial heartbeat
-    sendHeartbeat()
+    // Skip the tick if the window is hidden — don't refresh last_seen
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return
+      sendHeartbeat()
+    }
 
-    // Set up interval
-    heartbeatRef.current = setInterval(sendHeartbeat, 2 * 60 * 1000) // Every 2 minutes
+    // Fire immediately when the window becomes visible again
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') sendHeartbeat()
+    }
+
+    sendHeartbeat()
+    heartbeatRef.current = setInterval(tick, 2 * 60 * 1000)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current)
-      }
+      clearInterval(heartbeatRef.current)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 

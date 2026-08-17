@@ -1,8 +1,9 @@
-import { Activity, Circle, Dumbbell } from 'lucide-react'
+import { Circle, Dumbbell } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-export function UserStatus({ status, workoutData }) {
-  if (status === 'offline') {
+export function UserStatus({ status, lastSeen, workoutData }) {
+  // Treat stale presence (lastSeen >5min ago) as offline
+   if (status === 'offline' || (lastSeen && Date.now() - new Date(lastSeen).getTime() > 5 * 60 * 1000)) {
     return (
       <div className="flex items-center gap-1.5">
         <Circle size={8} fill="#6B7280" color="#6B7280" />
