@@ -1,7 +1,7 @@
 // Profile + avatar storage helpers. Kept Supabase-free at the call sites so
 // the pure parts (fetchProfile / buildRows mapping) stay unit-testable.
 
-import { muscleGroupFor } from './integrity'
+import { muscleGroupFor } from './integrity.js'
 
 export async function fetchProfile(supabase, userId) {
   const { data, error } = await supabase
@@ -90,16 +90,19 @@ const REST_GRACE_DAYS = 2
 const DAY_MS = 86400000
 
 // Longest chain of training days where gaps of at most REST_GRACE_DAYS + 1
-// calendar days don't break the run.
+// calendar days don't break the run. Dates are local YYYY-MM-DD keys (see
+// localKey below), so gaps are measured in calendar days, not UTC instants.
 export function bestStreakOf(dates) {
   const days = [...new Set(dates)].sort()
-  const maxGap = (REST_GRACE_DAYS + 1) * DAY_MS
+  const maxGapDays = REST_GRACE_DAYS + 1
   let best = 0
   let run = 0
   let prev = null
   for (const d of days) {
-    const t = Date.parse(d)
-    run = prev !== null && t - prev <= maxGap ? run + 1 : 1
+    const t = Date.parse(`${d}T12:00:00`)
+    if (Number.isNaN(t)) continue
+    const gapDays = prev !== null ? Math.round((t - prev) / DAY_MS) : Infinity
+    run = gapDays <= maxGapDays ? run + 1 : 1
     if (run > best) best = run
     prev = t
   }
@@ -107,31 +110,32 @@ export function bestStreakOf(dates) {
 }
 
 // Current streak: chain of training days ending today or yesterday, walking
-// back through at most REST_GRACE_DAYS rest days between workouts.
+// back through at most REST_GRACE_DAYS rest days between workouts. Session
+// dates are local YYYY-MM-DD keys, so the cursor walks local calendar days —
+// a late-evening workout still counts for "today".
 export function currentStreakOf(dates, today = new Date()) {
   const set = new Set(dates)
-  const iso = (d) => d.toISOString().slice(0, 10)
   const cursor = new Date(today)
-  if (!set.has(iso(cursor))) cursor.setUTCDate(cursor.getUTCDate() - 1)
+  if (!set.has(localKey(cursor))) cursor.setDate(cursor.getDate() - 1)
   let streak = 0
   let rest = 0
   while (rest <= REST_GRACE_DAYS) {
-    if (set.has(iso(cursor))) {
+    if (set.has(localKey(cursor))) {
       streak += 1
       rest = 0
-      cursor.setUTCDate(cursor.getUTCDate() - 1)
+      cursor.setDate(cursor.getDate() - 1)
     } else {
       // Potential rest day — only kept if training resumes within the grace.
       rest += 1
-      cursor.setUTCDate(cursor.getUTCDate() - 1)
+      cursor.setDate(cursor.getDate() - 1)
     }
   }
   return streak
 }
 
 // Local YYYY-MM-DD key for a Date (matches data.js dateKey, i.e. the keys the
-// calendar plan uses). Kept private here so the streak/week helpers stay
-// self-contained and unit-testable.
+// calendar plan and session history use). Kept private here so the
+// streak/week helpers stay self-contained and unit-testable.
 const localKey = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ChevronLeft,
   CircleCheck,
@@ -75,9 +75,14 @@ export default function DayDetailScreen() {
   const timer = useTimer()
   const day = store.days.find((d) => d.id === nav.dayId) ?? store.days[0]
   const [dragIdx, setDragIdx] = useState(null)
-  const [dropIdx, setDropIdx] = useState(null)
+  const [undo, setUndo] = useState(null)
+  const listRef = useRef(null)
+  const dragState = useRef(null)
+  const undoTimer = useRef(null)
   const [confirmStop, setConfirmStop] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+
+  useEffect(() => () => clearTimeout(undoTimer.current), [])
 
   if (!day) return <Screen activeTab="home" />
 
@@ -94,6 +99,59 @@ export default function DayDetailScreen() {
     const [item] = list.splice(from, 1)
     list.splice(to, 0, item)
     store.updateDay(day.id, { exercises: list })
+  }
+
+  // Pointer-based reordering. HTML5 drag & drop never fires on touch, so the
+  // grip uses pointer events + capture instead — the row under the finger is
+  // recomputed from the live row midpoints and swapped in as you move.
+  function onGripDown(ev, i) {
+    ev.preventDefault()
+    ev.currentTarget.setPointerCapture(ev.pointerId)
+    dragState.current = { pointerId: ev.pointerId, idx: i }
+    setDragIdx(i)
+  }
+
+  function onGripMove(ev) {
+    const st = dragState.current
+    if (!st || ev.pointerId !== st.pointerId) return
+    const list = listRef.current
+    if (!list) return
+    const rows = [...list.children]
+    let target = rows.length - 1
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect()
+      if (ev.clientY < r.top + r.height / 2) {
+        target = i
+        break
+      }
+    }
+    if (target !== st.idx) {
+      move(st.idx, target)
+      st.idx = target
+      setDragIdx(target)
+    }
+  }
+
+  function onGripUp(ev) {
+    const st = dragState.current
+    if (!st || ev.pointerId !== st.pointerId) return
+    dragState.current = null
+    setDragIdx(null)
+  }
+
+  // Delete with a 5s undo toast instead of an irreversible removal.
+  function removeWithUndo(ex, index) {
+    store.removeExercise(day.id, ex.id)
+    clearTimeout(undoTimer.current)
+    setUndo({ exercise: ex, index })
+    undoTimer.current = setTimeout(() => setUndo(null), 5000)
+  }
+
+  function doUndo() {
+    if (!undo) return
+    clearTimeout(undoTimer.current)
+    store.restoreExercise(day.id, undo.exercise, undo.index)
+    setUndo(null)
   }
 
   function restartDay() {
@@ -233,25 +291,10 @@ export default function DayDetailScreen() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div ref={listRef} className="flex flex-col gap-2">
           {day.exercises.map((e, i) => (
             <div
               key={e.id}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(ev) => {
-                ev.preventDefault()
-                setDropIdx(i)
-              }}
-              onDrop={() => {
-                if (dragIdx !== null && dragIdx !== dropIdx) move(dragIdx, dropIdx)
-                setDragIdx(null)
-                setDropIdx(null)
-              }}
-              onDragEnd={() => {
-                setDragIdx(null)
-                setDropIdx(null)
-              }}
               className={`flex flex-col gap-3 rounded-[20px] p-4 transition-colors duration-200 transition-opacity md:flex-row md:items-center md:justify-between ${
                 dragIdx === i ? 'opacity-40' : ''
               } ${
@@ -268,7 +311,16 @@ export default function DayDetailScreen() {
                     <CircleCheck size={16} color="#17C964" />
                   </button>
                 ) : (
-                  <GripVertical size={16} color="var(--color-muted)" className="cursor-grab shrink-0" />
+                  <button
+                    onPointerDown={(ev) => onGripDown(ev, i)}
+                    onPointerMove={onGripMove}
+                    onPointerUp={onGripUp}
+                    onPointerCancel={onGripUp}
+                    aria-label={`Reorder ${e.name}`}
+                    className="flex h-9 w-9 shrink-0 cursor-grab touch-none items-center justify-center"
+                  >
+                    <GripVertical size={16} color="var(--color-muted)" />
+                  </button>
                 )}
                 <div className="flex flex-1 flex-col">
                   <span className="text-[14px] font-medium text-soft">{e.name}</span>
@@ -284,7 +336,8 @@ export default function DayDetailScreen() {
                   </button>
                 )}
                 <button
-                  onClick={() => store.removeExercise(day.id, e.id)}
+                  onClick={() => removeWithUndo(e, i)}
+                  aria-label={`Delete ${e.name}`}
                   className="flex h-9 w-9 items-center justify-center"
                 >
                   <Trash2 size={15} color="var(--color-sub)" />
@@ -312,9 +365,25 @@ export default function DayDetailScreen() {
         </button>
 
         <div className="flex justify-center pb-1">
-          <span className="text-[11px] text-muted">Hold the grip to reorder</span>
+          <span className="text-[11px] text-muted">Drag the grip to reorder</span>
         </div>
       </div>
+
+      {undo && (
+        <div className="fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-8">
+          <div className="glass-panel flex items-center gap-3 rounded-full bg-card py-2 pl-4 pr-2 shadow-[0px_10px_24px_0px_#00000080]">
+            <span className="max-w-[220px] truncate text-[13px] text-soft">
+              Deleted {undo.exercise.name}
+            </span>
+            <button
+              onClick={doUndo}
+              className="h-8 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-white"
+            >
+              Undo
+            </button>
+          </div>
+        </div>
+      )}
     </Screen>
   )
 }

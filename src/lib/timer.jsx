@@ -95,10 +95,10 @@ export function TimerProvider({ children }) {
       if (allDone && s.startedAt) {
         setShowSummary(true)
       }
-      setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId })
+      setSession({ dayId: s.dayId, exIdx: day.exercises.length, set: 1, justCompletedId, startedAt: s.startedAt })
       return
     }
-    setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId })
+    setSession({ dayId: s.dayId, exIdx: next, set: 1, justCompletedId, startedAt: s.startedAt })
     storeRef.current.setLastActiveExercise(day.exercises[next]?.name ?? null)
   }
 

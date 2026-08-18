@@ -9,6 +9,7 @@ import {
   weekKeysOf,
   workoutsInWeek,
   currentStreakOf,
+  bestStreakOf,
 } from './profile.js'
 
 const ok = (data) => ({
@@ -139,9 +140,9 @@ test('workoutsInWeek is 0 with no sessions', () => {
   assert.equal(workoutsInWeek(undefined, MID_WEEK), 0)
 })
 
-// currentStreakOf works on UTC iso keys, so pin "today" at UTC noon to keep
-// the date stable regardless of the runner's timezone.
-const TODAY_NOON = new Date('2026-08-12T12:00:00Z')
+// currentStreakOf works on local YYYY-MM-DD keys, so pin "today" at local
+// noon to keep the date stable regardless of the runner's timezone.
+const TODAY_NOON = new Date(2026, 7, 12, 12)
 
 test('currentStreakOf counts consecutive training days ending today', () => {
   const dates = ['2026-08-10', '2026-08-11', '2026-08-12']
@@ -166,4 +167,20 @@ test('currentStreakOf anchors on yesterday when today is not logged yet', () => 
   assert.equal(currentStreakOf(['2026-08-09'], TODAY_NOON), 1)
   // Three missed days since the last workout breaks the chain.
   assert.equal(currentStreakOf(['2026-08-08'], TODAY_NOON), 0)
+})
+
+test('currentStreakOf counts a late-evening workout as today (local dating)', () => {
+  // 23:30 local time — with the old UTC dating this key would have rolled
+  // over to the next calendar day in most timezones and broken the streak.
+  const lateEvening = new Date(2026, 7, 12, 23, 30)
+  assert.equal(currentStreakOf(['2026-08-12'], lateEvening), 1)
+})
+
+test('bestStreakOf measures gaps in calendar days', () => {
+  // Two rest days between workouts stay inside the grace window.
+  assert.equal(bestStreakOf(['2026-08-09', '2026-08-12']), 2)
+  // Three missed days break the run.
+  assert.equal(bestStreakOf(['2026-08-08', '2026-08-12']), 1)
+  // Consecutive days chain up.
+  assert.equal(bestStreakOf(['2026-08-10', '2026-08-11', '2026-08-12']), 3)
 })

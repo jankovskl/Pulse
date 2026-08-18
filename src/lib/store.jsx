@@ -4,6 +4,7 @@ import { getUserId, subscribeUser, registerBeforeSignOut } from './auth'
 import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
 import { publishStats } from './profile'
 import { clampWeight } from './integrity'
+import { dateKey } from './data'
 
 const KEY = 'pulse.state.v2'
 
@@ -288,9 +289,31 @@ export function StoreProvider({ children }) {
         }))
       },
 
+      // Re-insert a removed exercise at its old position (undo). No-op if the
+      // exercise is already back (e.g. a stale undo firing twice).
+      restoreExercise(dayId, exercise, index) {
+        setState((s) => ({
+          ...s,
+          days: s.days.map((d) => {
+            if (d.id !== dayId) return d
+            if (d.exercises.some((e) => e.id === exercise.id)) return d
+            const exercises = [...d.exercises]
+            exercises.splice(Math.max(0, Math.min(index, exercises.length)), 0, exercise)
+            return {
+              ...d,
+              exercises,
+              muscles: [...new Set([...d.muscles, exercise.muscle])],
+            }
+          }),
+        }))
+      },
+
       toggleExercise(dayId, exId) {
         const now = new Date()
-        const full = now.toISOString().slice(0, 10)
+        // Local calendar date, not UTC: a late-evening set must land on the
+        // day the user is actually training (same keys the calendar plan and
+        // streak helpers use).
+        const full = dateKey(now)
         // Derive the lift to push from the latest committed state BEFORE the
         // state update. React may defer a setState updater until the next
         // render, so side effects inside it can silently never run — that
@@ -391,7 +414,7 @@ export function StoreProvider({ children }) {
       logSession(exerciseName, sets, reps, weight, pr) {
         const now = new Date()
         const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
-        const full = now.toISOString().slice(0, 10)
+        const full = dateKey(now)
         setState((s) => {
           const newSession = { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr }
           const sessions = s.sessions

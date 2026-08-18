@@ -1,6 +1,7 @@
 import { Check, Clock, Dumbbell, Trophy, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
+import { dateKey } from '../lib/data'
 
 export default function WorkoutSummary({ day, session, onClose }) {
   const [show, setShow] = useState(false)
@@ -22,8 +23,9 @@ export default function WorkoutSummary({ day, session, onClose }) {
   const completedExercises = day.exercises.filter((e) => e.done)
   const totalSets = completedExercises.reduce((sum, e) => sum + e.sets, 0)
 
-  // Get today's sessions to check for PRs
-  const today = new Date().toISOString().slice(0, 10)
+  // Get today's sessions to check for PRs — local date key, matching how
+  // sessions are dated in the store.
+  const today = dateKey(new Date())
   const todaysSessions = store.sessions.filter((s) => s.full === today)
   const prs = todaysSessions.filter((s) => s.pr)
   const hasPRs = prs.length > 0
