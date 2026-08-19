@@ -41,14 +41,13 @@ function DayTile({ date, today, onOpen, planned }) {
   )
 }
 
-const GOAL_OPTIONS = [1, 2, 3, 4, 5, 6, 7]
-
-function StreakCard({ streak, done, goal, onEditGoal }) {
+function StreakCard({ streak, done, goal, onShowGoal, onGoCalendar }) {
   // The goal is plan-derived; training can exceed it, but the number caps at
   // the goal once hit (4/4 stays 4/4 even after 6 trained days).
   const shown = Math.min(done, goal)
   const pct = goal > 0 ? Math.min(1, done / goal) : 0
   const hit = goal > 0 && done >= goal
+  const empty = goal === 0
   return (
     <div className="flex items-center gap-4 rounded-[24px] bg-card p-4 shadow-[0px_2px_4px_0px_#0000000A]">
       <div className="flex shrink-0 items-center gap-3">
@@ -73,33 +72,48 @@ function StreakCard({ streak, done, goal, onEditGoal }) {
         </div>
       </div>
       <div className="h-9 w-px shrink-0 bg-line/10" />
-      <button onClick={onEditGoal} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[11px] font-medium text-sub">
-            <Target size={12} color="var(--color-sub)" />
-            Weekly goal
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <button onClick={onShowGoal} className="flex flex-col gap-1.5 text-left">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-sub">
+              <Target size={12} color="var(--color-sub)" />
+              Weekly goal
+            </span>
+            <span
+              className={`flex items-center gap-1 text-[12px] font-semibold ${
+                hit ? 'text-good' : 'text-soft'
+              }`}
+            >
+              {hit && <Check size={12} color="var(--color-good)" strokeWidth={3} />}
+              {empty ? '0 planned' : `${shown}/${goal}`}
+            </span>
+          </div>
+          <div className="h-[6px] w-full overflow-hidden rounded-full bg-tile">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                hit ? 'bg-good' : 'bg-accent'
+              }`}
+              style={{ width: `${pct * 100}%` }}
+            />
+          </div>
+          <span className="text-[11px] text-sub">
+            {empty
+              ? done > 0
+                ? `0 planned · ${done} trained this week — schedule workouts to set your weekly goal`
+                : '0 planned — schedule workouts to set your weekly goal'
+              : `${goal} planned · ${done} trained this week`}
           </span>
-          <span
-            className={`flex items-center gap-1 text-[12px] font-semibold ${
-              hit ? 'text-good' : 'text-soft'
-            }`}
+        </button>
+        {empty && (
+          <button
+            onClick={onGoCalendar}
+            className="flex h-8 items-center justify-center gap-1.5 self-start rounded-[24px] bg-accent px-3.5 text-[12px] font-medium text-white"
           >
-            {hit && <Check size={12} color="var(--color-good)" strokeWidth={3} />}
-            {shown}/{goal}
-          </span>
-        </div>
-        <div className="h-[6px] w-full overflow-hidden rounded-full bg-tile">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              hit ? 'bg-good' : 'bg-accent'
-            }`}
-            style={{ width: `${pct * 100}%` }}
-          />
-        </div>
-        <span className="text-[11px] text-sub">
-          {goal} planned · {done} trained this week
-        </span>
-      </button>
+            <CalendarDays size={13} color="#fff" strokeWidth={2.5} />
+            Go to Calendar
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -112,7 +126,7 @@ export default function HomeScreen() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmShow, setConfirmShow] = useState(false)
   const [pickDate, setPickDate] = useState(null)
-  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalInfo, setGoalInfo] = useState(false)
 
   const today = new Date()
   const days = store.days
@@ -129,7 +143,6 @@ export default function HomeScreen() {
   // Plan-derived weekly goal: the count of Planned workouts on the calendar
   // this week (see ADR 0001). The 1–7 setting no longer drives the card.
   const weekPlanned = useMemo(() => countPlannedInWeek(store.plan), [store.plan])
-  const weeklyGoal = store.settings.weeklyGoal ?? 4
 
   const totalExercises = days.reduce((n, d) => n + d.exercises.length, 0)
   const trainingDays = days.filter((d) => d.exercises.length > 0)
@@ -210,7 +223,8 @@ export default function HomeScreen() {
           streak={streak}
           done={weekDone}
           goal={weekPlanned}
-          onEditGoal={() => setEditingGoal(true)}
+          onShowGoal={() => setGoalInfo(true)}
+          onGoCalendar={() => nav.go('calendar')}
         />
 
         <div className="flex flex-col gap-3" data-tutorial="home-split">
@@ -315,47 +329,36 @@ export default function HomeScreen() {
         </div>
       </Modal>
 
-      <Modal open={editingGoal} onClose={() => setEditingGoal(false)}>
+      <Modal open={goalInfo} onClose={() => setGoalInfo(false)}>
         <div className="flex flex-col gap-5">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
                 <Target size={18} color="var(--color-accent)" />
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[16px] font-medium text-soft">Weekly goal</span>
-                <span className="text-[12px] text-sub">How many days you aim to train</span>
-              </div>
+              <span className="text-[16px] font-medium text-soft">Weekly goal</span>
             </div>
             <button
-              onClick={() => setEditingGoal(false)}
+              onClick={() => setGoalInfo(false)}
               className="flex h-6 w-6 items-center justify-center rounded-[12px] bg-tile"
             >
               <X size={16} color="var(--color-sub)" />
             </button>
           </div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {GOAL_OPTIONS.map((n) => {
-              const active = n === weeklyGoal
-              return (
-                <button
-                  key={n}
-                  onClick={() => {
-                    store.setSettings({ weeklyGoal: n })
-                    setEditingGoal(false)
-                  }}
-                  className={`flex h-11 items-center justify-center rounded-[12px] text-[14px] font-semibold transition-colors ${
-                    active ? 'bg-accent text-white' : 'bg-tile text-soft active:bg-line/10'
-                  }`}
-                >
-                  {n}
-                </button>
-              )
-            })}
-          </div>
-          <span className="text-center text-[11px] text-muted">
-            You've done {weekDone} {weekDone === 1 ? 'day' : 'days'} this week
-          </span>
+          <p className="text-[13px] leading-relaxed text-soft">
+            Your weekly goal = the workouts you schedule on the calendar. Schedule more to raise it,
+            train them to fill it.
+          </p>
+          <button
+            onClick={() => {
+              setGoalInfo(false)
+              nav.go('calendar')
+            }}
+            className="flex h-12 items-center justify-center gap-2 rounded-[24px] bg-accent"
+          >
+            <CalendarDays size={16} color="#fff" strokeWidth={2.5} />
+            <span className="text-[14px] font-medium text-white">Go to Calendar</span>
+          </button>
         </div>
       </Modal>
 
