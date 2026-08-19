@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Activity, CalendarDays, Check, Flame, MoonStar, Plus, Target, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { dateKey, WEEKDAY_NAMES } from '../lib/data'
-import { currentStreakOf, workoutsInWeek } from '../lib/profile'
+import { countPlannedInWeek, currentStreakOf, workoutsInWeek } from '../lib/profile'
 import { Chip, Modal, Screen, useNav } from '../components/ui'
 import { PlanDayPicker } from '../components/Calendar'
 
@@ -44,6 +44,9 @@ function DayTile({ date, today, onOpen, planned }) {
 const GOAL_OPTIONS = [1, 2, 3, 4, 5, 6, 7]
 
 function StreakCard({ streak, done, goal, onEditGoal }) {
+  // The goal is plan-derived; training can exceed it, but the number caps at
+  // the goal once hit (4/4 stays 4/4 even after 6 trained days).
+  const shown = Math.min(done, goal)
   const pct = goal > 0 ? Math.min(1, done / goal) : 0
   const hit = goal > 0 && done >= goal
   return (
@@ -82,7 +85,7 @@ function StreakCard({ streak, done, goal, onEditGoal }) {
             }`}
           >
             {hit && <Check size={12} color="var(--color-good)" strokeWidth={3} />}
-            {done}/{goal}
+            {shown}/{goal}
           </span>
         </div>
         <div className="h-[6px] w-full overflow-hidden rounded-full bg-tile">
@@ -93,6 +96,9 @@ function StreakCard({ streak, done, goal, onEditGoal }) {
             style={{ width: `${pct * 100}%` }}
           />
         </div>
+        <span className="text-[11px] text-sub">
+          {goal} planned · {done} trained this week
+        </span>
       </button>
     </div>
   )
@@ -120,6 +126,9 @@ export default function HomeScreen() {
     [store.sessions],
   )
   const weekDone = useMemo(() => workoutsInWeek(store.sessions), [store.sessions])
+  // Plan-derived weekly goal: the count of Planned workouts on the calendar
+  // this week (see ADR 0001). The 1–7 setting no longer drives the card.
+  const weekPlanned = useMemo(() => countPlannedInWeek(store.plan), [store.plan])
   const weeklyGoal = store.settings.weeklyGoal ?? 4
 
   const totalExercises = days.reduce((n, d) => n + d.exercises.length, 0)
@@ -200,7 +209,7 @@ export default function HomeScreen() {
         <StreakCard
           streak={streak}
           done={weekDone}
-          goal={weeklyGoal}
+          goal={weekPlanned}
           onEditGoal={() => setEditingGoal(true)}
         />
 
