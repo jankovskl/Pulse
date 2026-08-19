@@ -161,6 +161,14 @@ export function workoutsInWeek(sessions, today = new Date()) {
   ).size
 }
 
+// Planned workouts scheduled inside the current Mon–Sun week — this is the
+// Weekly goal (see ADR 0001). The plan maps a date key (YYYY-MM-DD) to a day
+// id; each entry is one planned workout.
+export function countPlannedInWeek(plan, today = new Date()) {
+  const keys = new Set(weekKeysOf(today))
+  return Object.keys(plan ?? {}).filter((d) => keys.has(d)).length
+}
+
 // Derive the public stats blob from local state (pure, unit-testable).
 export function deriveStats(state) {
   const sessions = state?.sessions ?? []

@@ -8,6 +8,7 @@ import {
   searchProfiles,
   weekKeysOf,
   workoutsInWeek,
+  countPlannedInWeek,
   currentStreakOf,
   bestStreakOf,
 } from './profile.js'
@@ -138,6 +139,32 @@ test('workoutsInWeek counts unique training days inside the week', () => {
 test('workoutsInWeek is 0 with no sessions', () => {
   assert.equal(workoutsInWeek([], MID_WEEK), 0)
   assert.equal(workoutsInWeek(undefined, MID_WEEK), 0)
+})
+
+test('countPlannedInWeek counts plan entries whose date falls in the week', () => {
+  const plan = {
+    '2026-08-10': 'element-1', // Monday — inside
+    '2026-08-12': 'element-2', // Wednesday — inside
+    '2026-08-14': 'element-3', // Friday — inside
+    '2026-08-09': 'element-4', // previous day — outside
+    '2026-08-17': 'element-5', // next Monday — outside
+  }
+  assert.equal(countPlannedInWeek(plan, MID_WEEK), 3)
+})
+
+test('countPlannedInWeek is 0 with an empty plan', () => {
+  assert.equal(countPlannedInWeek({}, MID_WEEK), 0)
+  assert.equal(countPlannedInWeek(undefined, MID_WEEK), 0)
+})
+
+test('countPlannedInWeek mid-week reference counts the full Mon–Sun window', () => {
+  // MID_WEEK is Wednesday 2026-08-12; plans on the Monday and Sunday of that
+  // same week still count.
+  const plan = {
+    '2026-08-10': 'element-1', // Monday
+    '2026-08-16': 'element-2', // Sunday
+  }
+  assert.equal(countPlannedInWeek(plan, MID_WEEK), 2)
 })
 
 // currentStreakOf works on local YYYY-MM-DD keys, so pin "today" at local
