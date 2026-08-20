@@ -1,10 +1,55 @@
 import { useMemo, useState } from 'react'
-import { Activity, CalendarDays, Check, Flame, MoonStar, Plus, Target, Trash2, X } from 'lucide-react'
+import { Activity, AppWindow, CalendarDays, Check, Flame, MoonStar, Plus, Target, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
+import { usePwaInstall } from '../lib/pwaProvider'
 import { dateKey, WEEKDAY_NAMES } from '../lib/data'
 import { countPlannedInWeek, currentStreakOf, workoutsInWeek } from '../lib/profile'
 import { Chip, Modal, Screen, useNav } from '../components/ui'
 import { PlanDayPicker } from '../components/Calendar'
+
+// Web-install banner (see CONTEXT.md "web install"). Shown only on the Home
+// screen, when the platform can offer an install and the user hasn't dismissed
+// it. Hidden entirely inside the desktop shell or once the PWA is installed
+// full-screen (offerInstall derives both at runtime). Where no native prompt
+// fires (notably iOS Safari), the banner is a dismissible notice pointing to
+// the browser's own add-to-home-screen flow.
+function InstallBanner() {
+  const store = useStore()
+  const { offerInstall, installMode, promptInstall } = usePwaInstall()
+  if (!offerInstall || store.settings.pwaDismissed) return null
+  return (
+    <div className="flex items-center gap-3 rounded-[16px] bg-card px-3.5 py-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-accent/15">
+        <AppWindow size={15} color="var(--color-accent)" />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col leading-tight">
+        <span className="text-[13px] font-semibold text-ink">Install Pulse</span>
+        <span className="mt-0.5 text-[11px] text-faint">
+          {installMode === 'native'
+            ? 'View it full-screen, straight from your device'
+            : 'Use your browser to add Pulse to your home screen'}
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {installMode === 'native' && (
+          <button
+            onClick={() => promptInstall()}
+            className="h-8 rounded-[24px] bg-accent px-3.5 text-[12px] font-medium text-white"
+          >
+            Install
+          </button>
+        )}
+        <button
+          onClick={() => store.setSettings({ pwaDismissed: true })}
+          aria-label="Dismiss install suggestion"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tile"
+        >
+          <X size={14} color="var(--color-sub)" />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function weekOf(today) {
   const monday = new Date(today)
@@ -173,6 +218,7 @@ export default function HomeScreen() {
   return (
     <Screen activeTab="home">
       <div className="flex flex-col gap-6" data-tutorial="home-screen">
+        <InstallBanner />
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

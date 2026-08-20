@@ -3,6 +3,7 @@ import { StoreProvider, useStore } from './lib/store'
 import { AuthProvider, useAuth } from './lib/auth'
 import { TimerProvider } from './lib/timer'
 import { PresenceProvider } from './lib/presenceProvider'
+import { PwaInstallProvider } from './lib/pwaProvider'
 import { DEFAULT_THEME } from './lib/themes'
 import { NavProvider, useNav } from './components/ui'
 import Tutorial from './components/Tutorial'
@@ -146,7 +147,9 @@ function App() {
         <PresenceProvider>
           <TimerProvider>
             <NavProvider>
-              <Router />
+              <PwaInstallProvider>
+                <Router />
+              </PwaInstallProvider>
             </NavProvider>
           </TimerProvider>
         </PresenceProvider>

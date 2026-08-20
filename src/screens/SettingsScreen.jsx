@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown,
   ArrowUp,
+  AppWindow,
   Cat,
   Check,
   ChevronDown,
@@ -26,6 +27,7 @@ import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } fr
 import { fetchChangelog } from '../lib/changelog'
 import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
+import { usePwaInstall } from '../lib/pwaProvider'
 import { isSupabaseEnabled, supabase } from '../lib/supabase'
 import { THEMES as THEME_PRESETS, themeById } from '../lib/themes'
 import {
@@ -97,6 +99,7 @@ export default function SettingsScreen() {
   const store = useStore()
   const auth = useAuth()
   const { resetTutorial } = useTutorial()
+  const pwa = usePwaInstall()
   const fileRef = useRef(null)
   const authDialog = useDialog()
   const signOutDialog = useDialog()
@@ -107,6 +110,7 @@ export default function SettingsScreen() {
   const [changelog, setChangelog] = useState(null)
   const [failed, setFailed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [installOpen, setInstallOpen] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const [view, setView] = useState('main')
   const [myProfile, setMyProfile] = useState(null)
@@ -722,6 +726,18 @@ export default function SettingsScreen() {
 
         <div className="flex flex-col gap-2.5">
           <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">SYNC & ABOUT</div>
+          {pwa.offerInstall && (
+            <Row
+              icon={<AppWindow size={15} color="var(--color-accent)" />}
+              title="Install app"
+              subtitle={
+                pwa.installMode === 'native'
+                  ? 'Add Pulse to your home screen or desktop'
+                  : 'Use your browser to add Pulse to your home screen'
+              }
+              onClick={() => (pwa.installMode === 'native' ? pwa.promptInstall() : setInstallOpen(true))}
+            />
+          )}
           <Row
             icon={<Rocket size={15} color="var(--color-accent)" />}
             title="What's new"
@@ -806,6 +822,47 @@ export default function SettingsScreen() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {installOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
+          onClick={() => setInstallOpen(false)}
+        >
+          <div
+            className="glass-panel flex max-h-[70dvh] w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-semibold text-soft">Install the Pulse app</span>
+                <span className="text-[12px] text-muted">
+                  Your browser didn't show an install prompt — add Pulse from its Share or menu
+                </span>
+              </div>
+              <button
+                onClick={() => setInstallOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
+              >
+                <X size={15} color="var(--color-sub)" />
+              </button>
+            </div>
+            <ol className="flex flex-col gap-3">
+              {[
+                'Open the Share sheet on iPhone (the square-arrow icon at the bottom of the screen), or the browser menu (more ⋮ / ⋯) on Android and desktop',
+                'Choose "Add to Home Screen" — labeled "Install app" or "Add to home screen" in some browsers',
+                'Name it "Pulse" and confirm — the icon now launches Pulse full-screen',
+              ].map((step, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug text-soft">
+                  <span className="mt-[7px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent-light">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       )}
