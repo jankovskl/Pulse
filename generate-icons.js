@@ -22,8 +22,8 @@ const iconSVG = `
       <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- Background circle (no white pixels anywhere) -->
-  <circle cx="256" cy="256" r="256" fill="url(#bg)" />
+  <!-- Full-bleed opaque background: every pixel painted, no transparent corners -->
+  <rect width="512" height="512" fill="url(#bg)" />
   <!-- Main accent triangle/arrow pointing right (play symbol) -->
   <polygon points="180,160 180,352 352,256" fill="url(#accent)" />
   <!-- Subtle inner glow -->
@@ -64,7 +64,8 @@ async function generateIcons() {
       <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <circle cx="256" cy="256" r="256" fill="url(#bg)" />
+  <!-- Full-bleed opaque background for the maskable icon: mask crops it, nothing peeks through -->
+  <rect width="512" height="512" fill="url(#bg)" />
   <!-- Smaller triangle for maskable safe zone (80% = 410px diameter, 205px radius) -->
   <polygon points="205,185 205,327 330,256" fill="url(#accent)" />
 </svg>
