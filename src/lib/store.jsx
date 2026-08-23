@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import { getUserId, subscribeUser, registerBeforeSignOut } from './auth'
 import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, shouldPushState } from './sync'
 import { publishStats } from './profile'
-import { clampWeight } from './integrity'
+import { clampWeight, isNewPersonalRecord } from './integrity'
 import { dateKey } from './data'
 
 const KEY = 'pulse.state.v2'
@@ -376,7 +376,7 @@ export function StoreProvider({ children }) {
               sets: ex.sets,
               reps: ex.reps,
               weight,
-              pr: weight >= prevBest && weight > 0,
+              pr: isNewPersonalRecord(weight, prevBest),
               // Keep what was actually typed so the Progress screen can show
               // the ghost line + explain the limit in a popup.
               ...(weight < ex.weight ? { capped: true, entered: ex.weight } : {}),

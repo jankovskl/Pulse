@@ -76,3 +76,11 @@ export function clampWeight(weight, prevBest, exercise) {
   const w = Math.max(0, Number(weight) || 0)
   return Math.min(w, maxAllowedWeight(prevBest, exercise))
 }
+
+// Whether a completed session sets a new personal record: it must strictly
+// beat the athlete's previous best for that exercise. Tying the old best is
+// not a record — only an improvement is.
+export function isNewPersonalRecord(weight, prevBest) {
+  const w = Number(weight) || 0
+  return w > prevBest && w > 0
+}
