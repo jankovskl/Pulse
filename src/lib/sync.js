@@ -69,6 +69,7 @@ export function hasWorkoutData(state) {
   return (
     (state?.days?.length ?? 0) > 0 ||
     (state?.sessions?.length ?? 0) > 0 ||
+    (state?.sleep?.length ?? 0) > 0 ||
     Object.keys(state?.plan ?? {}).length > 0
   )
 }

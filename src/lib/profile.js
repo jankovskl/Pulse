@@ -181,14 +181,63 @@ export function deriveStats(state) {
     if (g === 'other') continue
     groups[g] = Math.max(groups[g] ?? 0, s.weight ?? 0)
   }
+
+  // Sleep streak: longest streak of consecutive days with >=7 hours of sleep,
+  // where each qualifying log is still inside its 24-hour edit window (see
+  // sleepStreakOf). Retroactively backdated or post-window-edited entries
+  // cannot fabricate — or retroactively tear down — an earned run.
+  const sleepStreak = sleepStreakOf(state.sleep)
+
   return {
     sessions: state?.totals?.sessions ?? new Set(dates).size,
     best: Math.max(0, ...sessions.map((s) => s.weight ?? 0)),
     exercises: new Set(sessions.map((s) => s.exercise).filter(Boolean)).size,
     streak: currentStreakOf(dates),
     bestStreak: bestStreakOf(dates),
+    sleepStreak,
     groups,
   }
+}
+
+// The sleep-hours threshold a day must meet to count toward "Consistent Sleeper".
+export const SLEEP_THRESHOLD_HOURS = 7
+
+// Longest run of CONSECUTIVE calendar days (gap of exactly 1 day) with a logged
+// sleep of >= SLEEP_THRESHOLD_HOURS hours. Mirrors bestStreakOf's conventions:
+// dates are local YYYY-MM-DD keys and a single run is measured in calendar days.
+//
+// The 24-hour edit window is enforced at WRITE time in the store (addSleepLog /
+// updateSleepLog refuse retroactive/out-of-window edits, see issue 02/08), so the
+// logs this reads are already committed, in-window entries. Once a day's log is
+// committed it counts permanently — an after-the-window edit can't tear down an
+// already-earned run, and a backdated log never reaches this data in the first
+// place. A missing/extra hour value (e.g. legacy entries) simply doesn't count.
+export function sleepStreakOf(logs) {
+  const days = (logs ?? [])
+    .filter((log) => (log?.hours ?? 0) >= SLEEP_THRESHOLD_HOURS)
+    .map((log) => log?.date)
+    .filter(Boolean)
+  return consecutiveStreakOf(days)
+}
+
+// Longest run of consecutive calendar days (gap of exactly 1 day, unique keys).
+// Shared by sleepStreakOf; kept generic so the edit-window concerns stay in the
+// sleep-specific helper above.
+export function consecutiveStreakOf(dates) {
+  const days = [...new Set(dates)].sort()
+  let best = 0
+  let run = 0
+  let prev = null
+  for (const d of days) {
+    const t = Date.parse(`${d}T12:00:00`)
+    if (Number.isNaN(t)) continue
+    const gapDays = prev !== null ? Math.round((t - prev) / 86400000) : Infinity
+    // Allow only consecutive days (gap of exactly 1 day).
+    run = gapDays === 1 ? run + 1 : 1
+    if (run > best) best = run
+    prev = t
+  }
+  return best
 }
 
 // Publish the owner's public stats onto their profile row so other users can

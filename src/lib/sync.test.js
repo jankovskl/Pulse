@@ -122,6 +122,10 @@ test('hasWorkoutData is true when days, sessions or plan exist', () => {
   assert.equal(hasWorkoutData({ days: [], sessions: [], plan: { a: 'b' } }), true)
 })
 
+test('hasWorkoutData is true when sleep logs exist, even without workouts', () => {
+  assert.equal(hasWorkoutData({ days: [], sessions: [], sleep: [{ date: '2026-08-26', hours: 8 }] }), true)
+})
+
 test('shouldPushState blocks empty states unless a wipe was requested', () => {
   const empty = { days: [], sessions: [], plan: {}, settings: {} }
   assert.equal(shouldPushState(empty, false), false)

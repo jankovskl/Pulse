@@ -11,6 +11,8 @@ import {
   countPlannedInWeek,
   currentStreakOf,
   bestStreakOf,
+  deriveStats,
+  consecutiveStreakOf,
 } from './profile.js'
 
 const ok = (data) => ({
@@ -165,6 +167,60 @@ test('countPlannedInWeek mid-week reference counts the full Mon–Sun window', (
     '2026-08-16': 'element-2', // Sunday
   }
   assert.equal(countPlannedInWeek(plan, MID_WEEK), 2)
+})
+
+test('consecutiveStreakOf returns longest run of consecutive days', () => {
+  assert.equal(consecutiveStreakOf(['2026-08-10', '2026-08-11', '2026-08-12']), 3)
+  assert.equal(consecutiveStreakOf(['2026-08-10', '2026-08-12']), 1)
+  assert.equal(consecutiveStreakOf(['2026-08-08', '2026-08-09', '2026-08-11', '2026-08-12']), 2)
+  assert.equal(consecutiveStreakOf([]), 0)
+  assert.equal(consecutiveStreakOf(['2026-08-10']), 1)
+})
+
+test('deriveStats includes sleepStreak from sleep logs', () => {
+  const state = {
+    sessions: [],
+    sleep: [
+      { date: '2026-08-10', hours: 8 },
+      { date: '2026-08-11', hours: 7 },
+      { date: '2026-08-12', hours: 6 }, // below threshold
+      { date: '2026-08-13', hours: 9 },
+      { date: '2026-08-14', hours: 7 },
+    ],
+  }
+  const stats = deriveStats(state)
+  // Expect streak of 2 (Aug 13-14) because Aug 12 has <7h and breaks streak
+  assert.equal(stats.sleepStreak, 2)
+})
+
+test('deriveStats sleepStreak resets on gaps', () => {
+  const state = {
+    sessions: [],
+    sleep: [
+      { date: '2026-08-10', hours: 8 },
+      { date: '2026-08-11', hours: 9 },
+      // gap: 2026-08-12 missing
+      { date: '2026-08-13', hours: 8 },
+      { date: '2026-08-14', hours: 7 },
+    ],
+  }
+  const stats = deriveStats(state)
+  // Expect streak of 2 (Aug 10-11) then another 2 (Aug 13-14), best is 2
+  assert.equal(stats.sleepStreak, 2)
+})
+
+test('deriveStats sleepStreak handles duplicate dates', () => {
+  const state = {
+    sessions: [],
+    sleep: [
+      { date: '2026-08-10', hours: 8 },
+      { date: '2026-08-10', hours: 9 }, // duplicate date
+      { date: '2026-08-11', hours: 7 },
+    ],
+  }
+  const stats = deriveStats(state)
+  // Unique dates with >=7h: Aug 10, Aug 11 => streak 2
+  assert.equal(stats.sleepStreak, 2)
 })
 
 // currentStreakOf works on local YYYY-MM-DD keys, so pin "today" at local

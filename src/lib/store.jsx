@@ -27,13 +27,26 @@ export function requestCloudWipe() {
   wipeCloud = true
 }
 
+// Hours between two "HH:MM" times, handling a wake time that crosses midnight
+// (bedtime 23:00 → wake 07:00 = 8h). Rounded to 0.1h.
+function sleepHoursOf(bedtime, wake) {
+  const toMin = (t) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  let diff = toMin(wake) - toMin(bedtime)
+  if (diff < 0) diff += 24 * 60
+  return Math.round(diff / 6) / 10
+}
+
 const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', pwaDismissed: false },
+  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', pwaDismissed: false, sleepReminder: { enabled: false, time: '09:00' }, sleepGoal: 8 },
   lastActiveExercise: null,
   totals: { sessions: 0, lastSessionDay: null },
+  sleep: [],
 }
 
 function normalize(raw) {
@@ -49,6 +62,8 @@ function normalize(raw) {
     plan: raw.plan ?? {},
     settings: { ...DEFAULT.settings, ...(raw.settings ?? {}) },
     lastActiveExercise: raw.lastActiveExercise ?? DEFAULT.lastActiveExercise,
+    // Include sleep logs if present
+    sleep: raw.sleep ?? DEFAULT.sleep,
     // Lifetime counter feeds profile badges; older states lack it, so
     // backfill from the (capped) session list on first sight. A session is a
     // workout DAY, not an exercise, so count unique dates.
@@ -96,6 +111,7 @@ export function StoreProvider({ children }) {
   const [state, setState] = useState(load)
   const stateRef = useRef(state)
   const lastSynced = useRef(0)
+  const sleepSchedulerRef = useRef(null)
 
   function recordLift(exercise, weight) {
     const userId = getUserId()
@@ -208,6 +224,38 @@ export function StoreProvider({ children }) {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
 
+  // Scheduler for sleep reminders. Schedules a single next notification for
+  // the chosen time, then re-arms itself for the following day after firing.
+  const sleepTimer = useRef(null)
+  useEffect(() => {
+    const { enabled, time } = state.settings.sleepReminder || {}
+    if (!enabled) {
+      if (sleepTimer.current) clearTimeout(sleepTimer.current)
+      return
+    }
+    if (!time) return
+    const schedule = () => {
+      const now = new Date()
+      const [h, m] = time.split(':').map(Number)
+      const target = new Date(now)
+      target.setHours(h, m, 0, 0)
+      if (target <= now) target.setDate(target.getDate() + 1)
+      sleepTimer.current = setTimeout(() => {
+        if (!('Notification' in window)) return
+        const show = () =>
+          new Notification('Sleep Reminder', { body: 'Remember to log your sleep!' })
+        if (Notification.permission === 'granted') show()
+        else if (Notification.permission === 'default')
+          Notification.requestPermission().then((p) => p === 'granted' && show())
+        schedule()
+      }, target - now)
+    }
+    schedule()
+    return () => {
+      if (sleepTimer.current) clearTimeout(sleepTimer.current)
+    }
+  }, [state.settings.sleepReminder])
+
   const api = useMemo(
     () => ({
       days: state.days,
@@ -216,6 +264,7 @@ export function StoreProvider({ children }) {
       settings: state.settings,
       lastActiveExercise: state.lastActiveExercise,
       totals: state.totals,
+      sleep: state.sleep,
 
       addDay(name, weekday) {
         const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
@@ -295,17 +344,17 @@ export function StoreProvider({ children }) {
         setState((s) => ({
           ...s,
           days: s.days.map((d) => {
-            if (d.id !== dayId) return d
-            if (d.exercises.some((e) => e.id === exercise.id)) return d
-            const exercises = [...d.exercises]
-            exercises.splice(Math.max(0, Math.min(index, exercises.length)), 0, exercise)
+            if (d.id !== dayId) return d;
+            if (d.exercises.some((e) => e.id === exercise.id)) return d;
+            const exercises = [...d.exercises];
+            exercises.splice(Math.max(0, Math.min(index, exercises.length)), 0, exercise);
             return {
               ...d,
               exercises,
               muscles: [...new Set([...d.muscles, exercise.muscle])],
-            }
+            };
           }),
-        }))
+        }));
       },
 
       toggleExercise(dayId, exId) {
@@ -445,6 +494,57 @@ export function StoreProvider({ children }) {
         })
       },
 
+      // Sleep tracking API. A log is keyed by bed date (the night sleep
+      // started). `hours` is stored as given or computed from bedtime+wake when
+      // both are present. Legacy { date, hours } logs (no detail fields) keep
+      // working: they carry hours and simply have no bedtime/wake/etc.
+      addSleepLog(date, { hours, bedtime, wake, note, quality } = {}) {
+        const computedHours =
+          typeof hours === 'number'
+            ? hours
+            : bedtime && wake
+              ? sleepHoursOf(bedtime, wake)
+              : undefined
+        setState((s) => ({
+          ...s,
+          sleep: [
+            ...s.sleep,
+            {
+              date,
+              hours: computedHours,
+              ...(bedtime != null && { bedtime }),
+              ...(wake != null && { wake }),
+              ...(note != null && { note }),
+              ...(quality != null && { quality }),
+            },
+          ],
+        }))
+      },
+
+      updateSleepLog(date, { hours, bedtime, wake, note, quality } = {}) {
+        const computedHours =
+          typeof hours === 'number'
+            ? hours
+            : bedtime && wake
+              ? sleepHoursOf(bedtime, wake)
+              : hours
+        setState((s) => ({
+          ...s,
+          sleep: s.sleep.map((log) =>
+            log.date === date
+              ? {
+                  ...log,
+                  ...(typeof computedHours !== 'undefined' && { hours: computedHours }),
+                  ...(bedtime != null && { bedtime }),
+                  ...(wake != null && { wake }),
+                  ...(note != null && { note }),
+                  ...(quality != null && { quality }),
+                }
+              : log,
+          ),
+        }))
+      },
+
       exportAll() {
         return {
           days: state.days,
@@ -452,6 +552,7 @@ export function StoreProvider({ children }) {
           plan: state.plan,
           settings: state.settings,
           totals: state.totals,
+          sleep: state.sleep,
         }
       },
 
@@ -463,6 +564,7 @@ export function StoreProvider({ children }) {
           sessions,
           plan: data.plan ?? {},
           settings: { ...DEFAULT.settings, ...data.settings },
+          sleep: data.sleep ?? [],
           // Never trust totals from an import file — it can be hand-edited to
           // fake achievements. Recompute from the imported session history.
           totals: {
@@ -488,6 +590,34 @@ export function StoreProvider({ children }) {
     }),
     [state],
   )
+
+  // Scheduler for sleep reminders
+  useEffect(() => {
+    const { enabled, time } = state.settings.sleepReminder || {}
+    const schedulerRef = sleepSchedulerRef
+    if (!enabled) {
+      if (schedulerRef.current) clearTimeout(schedulerRef.current)
+      return
+    }
+    const now = new Date()
+    const [h, m] = time.split(':').map(Number)
+    const target = new Date(now)
+    target.setHours(h, m, 0, 0)
+    if (target <= now) target.setDate(target.getDate() + 1)
+    const delay = target - now
+    schedulerRef.current = setTimeout(() => {
+      if (!('Notification' in window)) return
+      const show = () => new Notification('Sleep Reminder', { body: 'Remember to log your sleep!' })
+      if (Notification.permission === 'granted') show()
+      else if (Notification.permission === 'default')
+        Notification.requestPermission().then((p) => p === 'granted' && show())
+      if (schedulerRef.current) clearTimeout(schedulerRef.current)
+      schedulerRef.current = setTimeout(arguments.callee, 24 * 60 * 60 * 1000)
+    }, delay)
+    return () => {
+      if (schedulerRef.current) clearTimeout(schedulerRef.current)
+    }
+  }, [state.settings.sleepReminder])
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
 }
