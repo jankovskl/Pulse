@@ -1,13 +1,15 @@
 // Month view for sleep data – GitHub-style heatmap grid.
-// Tinted squares (≤4 faint, ~7 medium, ≥8 strong) with a weekly score
-// and monthly average beneath. Tapping a square opens the sleep log sheet.
+// Tinted squares per-night sleep score (red→green gradient, same as the
+// overview calendar) with a weekly score and monthly average beneath.
+// Tapping a square opens the sleep log sheet.
 
 import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { dateKey } from '../lib/data'
 import { useNav } from '../components/ui'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { sleepMap, weekOf, sleepHoursOf } from '../screens/sleepUtils'
+import { sleepMap, weekOf, sleepHoursOf, sleepScoreForLog, sleepColor } from '../screens/sleepUtils'
+
 import { SleepSheet } from './SleepScreen'
 
 function getSleepColor(hours) {
@@ -37,6 +39,19 @@ export default function HealthMonthScreen() {
 
   const sm = useMemo(() => sleepMap(store.sleep), [store.sleep])
   const goal = store.settings.sleepGoal ?? 8
+  const ideal = store.settings.idealSleepOnset ?? '23:00'
+
+  // Per-night combined score (duration × timing × caffeine) — feeds the
+  // weekly score.
+  const scoreMap = useMemo(() => {
+    const m = {}
+    if (Array.isArray(store.sleep)) {
+      store.sleep.forEach((s) => {
+        if (s && typeof s.hours === 'number') m[s.date] = sleepScoreForLog(s, goal, ideal, store.caffeine)
+      })
+    }
+    return m
+  }, [store.sleep, goal, ideal, store.caffeine])
 
   // Sums over the month for the summary card
   const monthStats = useMemo(() => {
@@ -50,14 +65,15 @@ export default function HealthMonthScreen() {
     }, 0)
     const avg = count > 0 ? total / count : 0
 
-    // Weekly score: avg hours across the weeks in this month, capped at 100
+    // Weekly score: mean of each night's combined score (duration × timing)
+    // across the weeks in this month; unlogged nights count as 0.
     const weeklyScores = []
     let weekStart = new Date(localMonthStart)
     while (weekStart.getMonth() === cursor.getMonth() || inThisMonth(weekStart)) {
       const days = weekOf(weekStart).filter(inThisMonth)
-      const weekTotal = days.reduce((s, d) => s + (sm[dateKey(d)] ?? 0), 0)
+      const weekTotal = days.reduce((s, d) => s + (scoreMap[dateKey(d)] ?? 0), 0)
       const weekAvg = days.length > 0 ? weekTotal / days.length : 0
-      weeklyScores.push(Math.min(100, Math.round((weekAvg / goal) * 100)))
+      weeklyScores.push(Math.round(weekAvg))
       weekStart = new Date(weekStart)
       weekStart.setDate(weekStart.getDate() + 7)
       if (days.length > 0 && !inThisMonth(days[days.length - 1])) break
@@ -67,7 +83,7 @@ export default function HealthMonthScreen() {
       : 0
 
     return { avg: Math.round(avg * 10) / 10, count, weeklyScore }
-  }, [sm, dates, cursor, goal])
+  }, [sm, scoreMap, dates, cursor])
 
   function openSheet(date, key) {
     setSheetDate(key)
@@ -79,13 +95,13 @@ export default function HealthMonthScreen() {
     setSheetDate(null)
   }
 
-  function saveForDate(key, { bedtime, wake, note, quality }) {
+  function saveForDate(key, { bedtime, wake }) {
     const hours = sleepHoursOf(bedtime, wake)
     const existing = store.sleep.find((s) => s.date === key)
     if (existing) {
-      store.updateSleepLog(key, { hours, bedtime, wake, note, quality })
+      store.updateSleepLog(key, { hours, bedtime, wake })
     } else {
-      store.addSleepLog(key, { hours, bedtime, wake, note, quality })
+      store.addSleepLog(key, { hours, bedtime, wake })
     }
   }
 
@@ -103,12 +119,10 @@ export default function HealthMonthScreen() {
         bedKey: sheetDate,
         bedtime: sheetLog?.bedtime ?? '23:00',
         wake: sheetLog?.wake ?? '07:00',
-        note: sheetLog?.note ?? '',
-        quality: sheetLog?.quality,
         onDelete: sheetLog ? () => store.removeSleepLog(sheetDate) : null,
         onClose: closeSheet,
-        onSave: ({ bedtime, wake, note, quality }) =>
-          saveForDate(sheetDate, { bedtime, wake, note, quality }),
+        onSave: ({ bedtime, wake }) =>
+          saveForDate(sheetDate, { bedtime, wake }),
       }
     : null
 
@@ -158,13 +172,17 @@ export default function HealthMonthScreen() {
                   className="h-5 w-5 rounded-sm"
                   style={{
                     background: (() => {
-                      const h = sm[dateKey(d)]
-                      const c = getSleepColor(h)
+                      const key = dateKey(d)
+                      const score = scoreMap[key]
+                      if (score != null) return sleepColor(score)
+                      const c = getSleepColor(sm[key])
                       return c ?? 'var(--color-tile)'
                     })(),
                     border: sm[dateKey(d)] != null ? '1px solid var(--color-line)' : undefined,
                   }}
-                  title={sm[dateKey(d)] != null ? `${sm[dateKey(d)]}h` : 'No data'}
+                  title={sm[dateKey(d)] != null
+                    ? `${sm[dateKey(d)]}h · score ${scoreMap[dateKey(d)] ?? '—'}`
+                    : 'No data'}
                   onClick={() => openSheet(d, dateKey(d))}
                 />
               ) : (

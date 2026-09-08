@@ -4,12 +4,23 @@ import { decorationById } from '../lib/badges'
 
 export const NavCtx = createContext(null)
 
+// Module-level navigate hook so non-React code (the store) can deep-link
+// without reaching into context — the sleep notification is the caller.
+let navigateFn = null
+export function setNavigate(fn) {
+  navigateFn = fn
+}
+export function navigate(screen) {
+  if (navigateFn) navigateFn(screen)
+}
+
 export function NavProvider({ children }) {
   const [view, setView] = useState({ name: 'home' })
   const nav = {
     ...view,
     go: (name, extra = {}) => setView({ name, ...extra }),
   }
+  navigateFn = nav.go
   return <NavCtx.Provider value={nav}>{children}</NavCtx.Provider>
 }
 
@@ -21,6 +32,7 @@ const TABS = [
   { key: 'home', label: 'Home', icon: 'house' },
   { key: 'timer', label: 'Timer', icon: 'timer' },
   { key: 'progress', label: 'Progress', icon: 'trending-up' },
+  { key: 'health', label: 'Sleep', icon: 'moon' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -28,6 +40,8 @@ const ICON_PATHS = {
   house: <path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z" />,
   timer: <path d="M10 2h4M12 14l3-3M13 6a7 7 0 1 0 0 12 7 7 0 0 0 0-12z" />,
   'trending-up': <path d="M22 7 13.5 15.5 8.5 10.5 2 17M16 7h6v6" />,
+  // "Sleep" tab: crescent moon (lucide `moon`), stroke-drawn like the rest.
+  moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
   settings: (
     <>
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />

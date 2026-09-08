@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { Activity, AppWindow, CalendarDays, Check, Flame, MoonStar, Plus, Target, Trash2, X } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { usePwaInstall } from '../lib/pwaProvider'
-import { dateKey, WEEKDAY_NAMES } from '../lib/data'
+import { dateKey, formatDuration, WEEKDAY_NAMES } from '../lib/data'
 import { countPlannedInWeek, currentStreakOf, workoutsInWeek } from '../lib/profile'
+import { lastNightKey, sleepMap, sleepScoreForLog, sleepColor } from './sleepUtils'
 import { Chip, Modal, Screen, useNav } from '../components/ui'
 import { PlanDayPicker } from '../components/Calendar'
 
@@ -163,6 +164,74 @@ function StreakCard({ streak, done, goal, onShowGoal, onGoCalendar }) {
   )
 }
 
+// Sleep summary card — "last night" with the same score chip the Health
+// screen uses, plus a 7-day average beneath. Reuses sleepUtils scoring so
+// Home and Health never disagree — including the caffeine component, which
+// is why the score here can sit below the duration/timing pair.
+function SleepOnHomeCard({ sleepGoal, idealOnset, sleepLogs, caffeineLogs, onOpen }) {
+  const map = useMemo(() => sleepMap(sleepLogs), [sleepLogs])
+  const lastKey = lastNightKey()
+  const lastLog = sleepLogs.find(
+    (s) => (typeof s.date === 'string' ? s.date : dateKey(s.date)) === lastKey,
+  ) ?? null
+
+  // Average hours over the trailing 7 nights (only nights that were logged).
+  const weeklyAvg = useMemo(() => {
+    let total = 0
+    let count = 0
+    const now = new Date()
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now)
+      d.setDate(now.getDate() - i)
+      const h = map[dateKey(d)]
+      if (h != null) {
+        total += h
+        count++
+      }
+    }
+    return count ? Math.round((total / count) * 10) / 10 : null
+  }, [map])
+
+  const score = lastLog ? sleepScoreForLog(lastLog, sleepGoal, idealOnset, caffeineLogs) : null
+  const hours = lastLog?.hours ?? map[lastKey] ?? null
+
+
+  return (
+    <button
+      onClick={onOpen}
+      className="flex items-center gap-4 rounded-[24px] bg-card p-4 text-left shadow-[0px_2px_4px_0px_#0000000A]"
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15">
+        <MoonStar size={20} color="var(--color-accent)" />
+      </div>
+      <div className="flex flex-1 flex-col gap-0.5">
+        {lastLog ? (
+          <>
+            <span className="text-[13px] font-semibold text-soft">Last night · {hours ?? '—'}h</span>
+            <span className="text-[11px] text-sub">
+              {lastLog.bedtime ? `${lastLog.bedtime} → ${lastLog.wake ?? '—'}` : 'No times logged'}
+              {weeklyAvg != null && <> · {weeklyAvg}h avg this week</>}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-[13px] font-semibold text-soft">Log last night's sleep</span>
+            <span className="text-[11px] text-sub">Tap to record bed & wake times</span>
+          </>
+        )}
+      </div>
+      {score != null && (
+        <span
+          className="flex h-8 min-w-8 items-center justify-center rounded-full px-2.5 text-[12px] font-semibold tabular-nums text-white"
+          style={{ backgroundColor: sleepColor(score) }}
+        >
+          {score}
+        </span>
+      )}
+    </button>
+  )
+}
+
 export default function HomeScreen() {
   const store = useStore()
   const nav = useNav()
@@ -273,6 +342,14 @@ export default function HomeScreen() {
           onGoCalendar={() => nav.go('calendar')}
         />
 
+        <SleepOnHomeCard
+          sleepGoal={store.settings.sleepGoal ?? 8}
+          idealOnset={store.settings.idealSleepOnset ?? '23:00'}
+          sleepLogs={store.sleep}
+          caffeineLogs={store.caffeine}
+          onOpen={() => nav.go('health')}
+        />
+
         <div className="flex flex-col gap-3" data-tutorial="home-split">
           {days.map((d) => (
             <div
@@ -288,6 +365,7 @@ export default function HomeScreen() {
                   <span className="text-[16px] font-semibold text-soft">{d.name}</span>
                   <span className="text-[12px] text-sub">
                     {d.exercises.length} {d.exercises.length === 1 ? 'exercise' : 'exercises'}
+                    {d.exercises.length > 0 && <> · {formatDuration(d)}</>}
                   </span>
                 </div>
                 <div className="flex gap-0.5">

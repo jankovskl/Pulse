@@ -34,3 +34,15 @@ _Avoid_: "install" alone when the kind matters; "download" (no binary is fetched
 **Desktop install**:
 Installing the *Tauri* desktop app — a signed native NSIS installer fetched from GitHub Releases, with signature-verified auto-update via `latest.json`. The app owns its own entry and its own updates. Only the desktop build; the web build has no desktop-install path.
 _Avoid_: "install" alone when the kind matters; conflating with web install
+
+**Sleep log**:
+A record of one night's sleep — bedtime, wake time and the hours between — keyed by the wake date (see the wake-date ADR). The unit of sleep history on the Sleep tab.
+_Avoid_: night (ambiguous — a night spans two calendar dates), sleep entry
+
+**Caffeine entry**:
+A single logged caffeine dose: what (type), how much (milligrams), when (timestamp). A caffeine entry is an independent event, never part of a sleep log; it influences the sleep score of whichever night its timing falls into.
+_Avoid_: "part of the sleep log" (caffeine is logged separately), caffeine log (collides with sleep log)
+
+**Sleep score**:
+The 0–100 quality measure of a sleep log: how long the sleep lasted relative to the goal, damped by a late bedtime, and further reduced by caffeine still active in the body at bedtime.
+_Avoid_: rating, penalty (that's only the caffeine component)

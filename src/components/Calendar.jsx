@@ -1,5 +1,5 @@
 import { Check, ChevronLeft, ChevronRight, CircleCheck, MoonStar, X } from 'lucide-react'
-import { dateKey } from '../lib/data'
+import { dateKey, formatDuration } from '../lib/data'
 
 // Month grid of workout history + planned days.
 //   doneDates  — Set of dateKey strings with a logged session
@@ -122,7 +122,6 @@ export function WorkoutCalendar({
 // Bottom sheet for assigning a workout day to a specific date (or resting).
 export function PlanDayPicker({ date, days, currentId, onPick, onClose }) {
   if (!date) return null
-  const estMin = (d) => Math.max(1, Math.round(d.exercises.reduce((n, e) => n + e.sets * 45 + 30, 0) / 60))
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay" onClick={onClose}>
       <div
@@ -156,7 +155,7 @@ export function PlanDayPicker({ date, days, currentId, onPick, onClose }) {
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className="text-[14px] font-semibold text-soft">{cap}</span>
                   <span className="text-[12px] text-muted">
-                    {d.exercises.length} exercises · ~{estMin(d)} min
+                    {d.exercises.length} exercises · {formatDuration(d)}
                   </span>
                 </span>
                 {active && <CircleCheck size={18} color="var(--color-accent)" />}

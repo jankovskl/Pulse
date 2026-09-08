@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { useTimer } from '../lib/timer'
+import { formatDuration } from '../lib/data'
 import { Screen, useNav } from '../components/ui'
 import WorkoutSummary from '../components/WorkoutSummary'
 
@@ -197,6 +198,7 @@ export default function DayDetailScreen() {
             <h1 className="text-[22px] font-semibold capitalize text-soft">{day.name}</h1>
             <span className="text-[13px] text-muted">
               {day.exercises.length} {day.exercises.length === 1 ? 'exercise' : 'exercises'}
+              {day.exercises.length > 0 && <> · {formatDuration(day)}</>}
             </span>
           </div>
         </div>

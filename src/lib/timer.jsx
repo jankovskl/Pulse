@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useStore } from './store'
+import { setOngoingFull, clearOngoingFull, getOngoingFull } from './store'
+import { dateKey } from './data'
 import { usePresence } from './presenceProvider'
 
 const TKEY = 'pulse.timer.v1'
@@ -240,7 +242,7 @@ export function TimerProvider({ children }) {
     setRunning(true)
     setPaused(false)
     // Only update startedAt if it's not already set (preserve workout start time)
-    setSession((s) => (s ? { ...s, startedAt: s.startedAt, justCompletedId: null } : s))
+    setSession((s) => (s ? { ...s, startedAt: s.startedAt, justCompletedId: null, full: getOngoingFull() ?? dateKey(new Date()) } : s))
     if (notify && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
@@ -267,6 +269,8 @@ export function TimerProvider({ children }) {
   }
 
   function endWorkout() {
+  // Clear the unified session key when ending a workout
+  clearOngoingFull()
     const s = sessionRef.current
     if (s) {
       const day = storeRef.current.days.find((d) => d.id === s.dayId)
@@ -289,6 +293,10 @@ export function TimerProvider({ children }) {
   }
 
   function setDay(dayId) {
+    // When a new workout day is selected, start a unified session key.
+    // This prevents splitting across midnight.
+    const initFull = dateKey(new Date());
+    setOngoingFull(initFull);
     const day = storeRef.current.days.find((d) => d.id === dayId)
     const currentSession = sessionRef.current
     const startedAt = currentSession?.dayId === dayId && currentSession?.startedAt

@@ -5,6 +5,8 @@ import { loadRemoteResilient, pushState, loginLift, clearLifts, hasWorkoutData, 
 import { publishStats } from './profile'
 import { clampWeight, isNewPersonalRecord } from './integrity'
 import { dateKey } from './data'
+import { navigate } from '../components/ui'
+import { scheduleDailyReminder, fireSleepReminder } from './notifications'
 
 const KEY = 'pulse.state.v2'
 
@@ -22,19 +24,43 @@ export function resetPullSuppression() {
 // empty state is an intentional cloud wipe, not an accidental one. Without
 // this flag an empty state is never pushed, so deleting data while signed out
 // (or with a silently restored session) can never destroy the cloud copy.
-let wipeCloud = false
+let wipeCloud = false;
+// Holds the dateKey for the ongoing workout session to keep sessions unified across midnight.
+let ongoingFull = null;
+export function setOngoingFull(full) {
+  ongoingFull = full;
+}
+export function clearOngoingFull() {
+  ongoingFull = null;
+}
+export function getOngoingFull() {
+  return ongoingFull;
+}
 export function requestCloudWipe() {
   wipeCloud = true
 }
 
 // Hours between two "HH:MM" times, handling a wake time that crosses midnight
 // (bedtime 23:00 → wake 07:00 = 8h). Rounded to 0.1h.
+//
+// IMPORTANT: The HTML <input type="time"> returns 24-hour format (00:00–23:59).
+// Users often type "12:00" meaning midnight, but in 24h that's noon!
+// This function normalizes: "12:XX" → "00:XX" for bedtimes (since you don't
+// go to bed at noon), fixing the common 12 AM = 00:00 confusion.
 function sleepHoursOf(bedtime, wake) {
   const toMin = (t) => {
-    const [h, m] = t.split(':').map(Number)
-    return h * 60 + (m || 0)
+    if (!t) return NaN
+    const [h, m] = String(t).split(':').map(Number)
+    if (!Number.isFinite(h)) return NaN
+    // Normalize "12:XX" → "00:XX" because <input type="time"> uses 24h format
+    // and 12 AM = 00:00, not 12:00. Bedtime at noon is nonsensical.
+    const hour = h === 12 ? 0 : h
+    return hour * 60 + (m || 0)
   }
-  let diff = toMin(wake) - toMin(bedtime)
+  const b = toMin(bedtime)
+  const w = toMin(wake)
+  if (!Number.isFinite(b) || !Number.isFinite(w)) return NaN
+  let diff = w - b
   if (diff < 0) diff += 24 * 60
   return Math.round(diff / 6) / 10
 }
@@ -43,10 +69,12 @@ const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', pwaDismissed: false, sleepReminder: { enabled: false, time: '09:00' }, sleepGoal: 8 },
+  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', pwaDismissed: false, sleepReminder: { enabled: false, time: '09:00' }, sleepGoal: 8, idealSleepOnset: '23:00' },
   lastActiveExercise: null,
   totals: { sessions: 0, lastSessionDay: null },
   sleep: [],
+  caffeine: [],
+
 }
 
 function normalize(raw) {
@@ -64,6 +92,7 @@ function normalize(raw) {
     lastActiveExercise: raw.lastActiveExercise ?? DEFAULT.lastActiveExercise,
     // Include sleep logs if present
     sleep: raw.sleep ?? DEFAULT.sleep,
+    caffeine: raw.caffeine ?? DEFAULT.caffeine,
     // Lifetime counter feeds profile badges; older states lack it, so
     // backfill from the (capped) session list on first sight. A session is a
     // workout DAY, not an exercise, so count unique dates.
@@ -111,7 +140,7 @@ export function StoreProvider({ children }) {
   const [state, setState] = useState(load)
   const stateRef = useRef(state)
   const lastSynced = useRef(0)
-  const sleepSchedulerRef = useRef(null)
+
 
   function recordLift(exercise, weight) {
     const userId = getUserId()
@@ -223,37 +252,15 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(state))
   }, [state])
-
-  // Scheduler for sleep reminders. Schedules a single next notification for
-  // the chosen time, then re-arms itself for the following day after firing.
-  const sleepTimer = useRef(null)
+  // Scheduler for sleep reminders: fires one notification at the chosen time,
+  // re-arming daily. The fire deep-links to the Health (sleep) screen.
   useEffect(() => {
     const { enabled, time } = state.settings.sleepReminder || {}
-    if (!enabled) {
-      if (sleepTimer.current) clearTimeout(sleepTimer.current)
-      return
-    }
-    if (!time) return
-    const schedule = () => {
-      const now = new Date()
-      const [h, m] = time.split(':').map(Number)
-      const target = new Date(now)
-      target.setHours(h, m, 0, 0)
-      if (target <= now) target.setDate(target.getDate() + 1)
-      sleepTimer.current = setTimeout(() => {
-        if (!('Notification' in window)) return
-        const show = () =>
-          new Notification('Sleep Reminder', { body: 'Remember to log your sleep!' })
-        if (Notification.permission === 'granted') show()
-        else if (Notification.permission === 'default')
-          Notification.requestPermission().then((p) => p === 'granted' && show())
-        schedule()
-      }, target - now)
-    }
-    schedule()
-    return () => {
-      if (sleepTimer.current) clearTimeout(sleepTimer.current)
-    }
+    return scheduleDailyReminder({
+      enabled: !!enabled,
+      time,
+      onFire: () => fireSleepReminder(() => navigate('health')),
+    })
   }, [state.settings.sleepReminder])
 
   const api = useMemo(
@@ -265,6 +272,7 @@ export function StoreProvider({ children }) {
       lastActiveExercise: state.lastActiveExercise,
       totals: state.totals,
       sleep: state.sleep,
+    caffeine: state.caffeine,
 
       addDay(name, weekday) {
         const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
@@ -285,7 +293,6 @@ export function StoreProvider({ children }) {
         }))
         return id
       },
-
       updateDay(id, patch) {
         setState((s) => ({
           ...s,
@@ -362,7 +369,7 @@ export function StoreProvider({ children }) {
         // Local calendar date, not UTC: a late-evening set must land on the
         // day the user is actually training (same keys the calendar plan and
         // streak helpers use).
-        const full = dateKey(now)
+        const full = getOngoingFull() ?? dateKey(now)
         // Derive the lift to push from the latest committed state BEFORE the
         // state update. React may defer a setState updater until the next
         // render, so side effects inside it can silently never run — that
@@ -463,7 +470,7 @@ export function StoreProvider({ children }) {
       logSession(exerciseName, sets, reps, weight, pr) {
         const now = new Date()
         const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
-        const full = dateKey(now)
+        const full = getOngoingFull() ?? dateKey(now)
         setState((s) => {
           const newSession = { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr }
           const sessions = s.sessions
@@ -494,10 +501,11 @@ export function StoreProvider({ children }) {
         })
       },
 
-      // Sleep tracking API. A log is keyed by bed date (the night sleep
-      // started). `hours` is stored as given or computed from bedtime+wake when
-      // both are present. Legacy { date, hours } logs (no detail fields) keep
-      // working: they carry hours and simply have no bedtime/wake/etc.
+      // Sleep tracking API. A log is keyed by wake date (the morning the
+      // night ended — ADR 0004). `hours` is stored as given or computed from
+      // bedtime+wake when both are present. Legacy { date, hours } logs (no
+      // detail fields) keep working: they carry hours and simply have no
+      // bedtime/wake/etc.
       addSleepLog(date, { hours, bedtime, wake, note, quality } = {}) {
         const computedHours =
           typeof hours === 'number'
@@ -518,6 +526,46 @@ export function StoreProvider({ children }) {
               ...(quality != null && { quality }),
             },
           ],
+        }))
+      },
+      // Log one caffeine dose. `when` is a Date (resolved by the caller from
+      // the popup's time-of-day, incl. the "future time means yesterday"
+      // rule); the entry's date key always derives from it, never from now,
+      // so backfilled entries land on the right night.
+      addCaffeine({ type = 'coffee', amountMg = null, when = new Date() } = {}) {
+        setState((s) => ({
+          ...s,
+          caffeine: [
+            ...s.caffeine,
+            {
+              id: crypto.randomUUID(),
+              type,
+              amountMg,
+              time: when.toISOString(),
+              date: dateKey(when),
+            },
+          ],
+        }))
+      },
+
+      updateCaffeine(id, patch = {}) {
+        setState((s) => ({
+          ...s,
+          caffeine: s.caffeine.map((c) => {
+            if (c.id !== id) return c
+            const next = { ...c, ...patch }
+            // Keep the date key in sync with the timestamp — the popup can
+            // move an entry across a day boundary.
+            if (patch.time) next.date = dateKey(new Date(patch.time))
+            return next
+          }),
+        }))
+      },
+
+      deleteCaffeine(id) {
+        setState((s) => ({
+          ...s,
+          caffeine: s.caffeine.filter((c) => c.id !== id),
         }))
       },
 
@@ -542,6 +590,15 @@ export function StoreProvider({ children }) {
                 }
               : log,
           ),
+        }))
+      },
+
+      // Delete the log for a single wake date. Only the matching entry is
+      // removed; the rest of the sleep history stays untouched.
+      removeSleepLog(date) {
+        setState((s) => ({
+          ...s,
+          sleep: s.sleep.filter((log) => log.date !== date),
         }))
       },
 
@@ -591,37 +648,13 @@ export function StoreProvider({ children }) {
     [state],
   )
 
-  // Scheduler for sleep reminders
-  useEffect(() => {
-    const { enabled, time } = state.settings.sleepReminder || {}
-    const schedulerRef = sleepSchedulerRef
-    if (!enabled) {
-      if (schedulerRef.current) clearTimeout(schedulerRef.current)
-      return
-    }
-    const now = new Date()
-    const [h, m] = time.split(':').map(Number)
-    const target = new Date(now)
-    target.setHours(h, m, 0, 0)
-    if (target <= now) target.setDate(target.getDate() + 1)
-    const delay = target - now
-    schedulerRef.current = setTimeout(() => {
-      if (!('Notification' in window)) return
-      const show = () => new Notification('Sleep Reminder', { body: 'Remember to log your sleep!' })
-      if (Notification.permission === 'granted') show()
-      else if (Notification.permission === 'default')
-        Notification.requestPermission().then((p) => p === 'granted' && show())
-      if (schedulerRef.current) clearTimeout(schedulerRef.current)
-      schedulerRef.current = setTimeout(arguments.callee, 24 * 60 * 60 * 1000)
-    }, delay)
-    return () => {
-      if (schedulerRef.current) clearTimeout(schedulerRef.current)
-    }
-  }, [state.settings.sleepReminder])
-
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
+
+
 }
 
 export function useStore() {
+// Export control over ongoing session full key
+// Ongoing session full key helpers are exported at top level
   return useContext(StoreCtx)
 }

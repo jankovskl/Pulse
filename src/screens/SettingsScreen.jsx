@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDown,
-  ArrowUp,
   AppWindow,
+  Bell,
   Cat,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Cloud,
   CloudCheck,
   CloudOff,
@@ -15,6 +16,7 @@ import {
   Download,
   HelpCircle,
   Lock,
+  MoonStar,
   Palette,
   Pencil,
   Rocket,
@@ -24,6 +26,7 @@ import {
   X,
 } from 'lucide-react'
 import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
+import { permissionState, requestPermission } from '../lib/notifications'
 import { fetchChangelog } from '../lib/changelog'
 import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
@@ -44,6 +47,7 @@ import {
   WIDGETS,
 } from '../lib/badges'
 import { deriveStats, fetchFullProfile, saveProfile } from '../lib/profile'
+import { useTimer } from '../lib/timer'
 import AuthModal from '../components/AuthModal'
 import AccountEditor from '../components/AccountEditor'
 import { Avatar, DecoratedAvatar, DecorationTitle, DECORATION_FRAMES, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
@@ -98,6 +102,10 @@ function ThemeSwatch({ t, active, onPick }) {
 export default function SettingsScreen() {
   const store = useStore()
   const auth = useAuth()
+  const timer = useTimer()
+  // Notification permission, refreshed on mount — drives the sleep-reminder
+  // toggle's subtitle and whether flipping it on can actually fire.
+  const [notifPerm, setNotifPerm] = useState(() => permissionState())
   const { resetTutorial } = useTutorial()
   const pwa = usePwaInstall()
   const fileRef = useRef(null)
@@ -287,6 +295,25 @@ export default function SettingsScreen() {
     } finally {
       setDeleteBusy(false)
     }
+  }
+
+  // Sleep reminder permission + settings handling. Flipping the toggle on
+  // requests permission first (must happen inside the user gesture); if the
+  // browser won't grant it, the reminder stays off and the subtitle explains.
+  const sleepReminder = store.settings.sleepReminder ?? { enabled: false, time: '09:00' }
+  async function toggleSleepReminder(on) {
+    if (!on) {
+      store.setSettings({ sleepReminder: { ...sleepReminder, enabled: false } })
+      return
+    }
+    const p = await requestPermission()
+    setNotifPerm(p)
+    if (p === 'granted') {
+      store.setSettings({ sleepReminder: { ...sleepReminder, enabled: true } })
+    }
+  }
+  function setSleepReminderTime(time) {
+    store.setSettings({ sleepReminder: { ...sleepReminder, time } })
   }
 
   return (
@@ -723,6 +750,51 @@ export default function SettingsScreen() {
             />
           )}
         </div>
+
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">NOTIFICATIONS</div>
+          <Row
+            icon={<Bell size={15} color="var(--color-accent)" />}
+            title="Workout rest timer"
+            subtitle="Alert when a rest period ends"
+            right={<Toggle on={timer.notify} onChange={(v) => timer.setNotify(v)} />}
+          />
+          <div className="flex items-center gap-3 rounded-[16px] bg-card px-3.5 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent/15">
+              <MoonStar size={15} color="var(--color-accent)" />
+            </div>
+            <div className="flex flex-1 flex-col leading-tight">
+              <span className="text-[14px] font-semibold text-ink">Sleep reminder</span>
+              <span className="mt-0.5 text-[11px] text-faint">
+                {sleepReminder.enabled
+                  ? `Daily nudge at ${sleepReminder.time}`
+                  : notifPerm === 'denied'
+                    ? 'Blocked in your browser — allow notifications to use this'
+                    : 'Daily nudge to log last night'}
+              </span>
+            </div>
+            <Toggle on={sleepReminder.enabled} onChange={toggleSleepReminder} />
+          </div>
+          {sleepReminder.enabled && (
+            <div className="flex items-center gap-3 rounded-[16px] bg-card px-3.5 py-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent/15">
+                <Clock size={15} color="var(--color-accent)" />
+              </div>
+              <div className="flex flex-1 flex-col leading-tight">
+                <span className="text-[14px] font-semibold text-ink">Reminder time</span>
+              </div>
+              <input
+                type="time"
+                value={sleepReminder.time}
+                onChange={(e) => setSleepReminderTime(e.target.value)}
+                aria-label="Sleep reminder time"
+                className="h-9 rounded-[10px] bg-field px-2.5 text-[12px] text-soft outline-none"
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+          )}
+        </div>
+
 
         <div className="flex flex-col gap-2.5">
           <div className="text-[11px] font-semibold tracking-[1.4px] text-muted">SYNC & ABOUT</div>

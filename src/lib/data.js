@@ -10,7 +10,8 @@ export const CATEGORIES = [
   'Full Body',
 ]
 
-export { default as LIBRARY } from './exercises.json'
+// Import attribute required by Node's ESM loader (node --test); Vite accepts it too.
+export { default as LIBRARY } from './exercises.json' with { type: 'json' }
 
 const KNOWN_EXERCISES = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press']
 
@@ -80,3 +81,15 @@ export const dateKey = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export const firstOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1)
+
+// Estimated session length: each set (work + rest) takes about 4-5 minutes.
+export function estimateDuration(day) {
+  const totalSets = day.exercises.reduce((n, e) => n + (e.sets || 0), 0)
+  return { min: totalSets * 4, max: totalSets * 5 }
+}
+
+export function formatDuration(day) {
+  if (!day.exercises.length) return '0 min'
+  const { min, max } = estimateDuration(day)
+  return `~${min}\u2013${max} min`
+}
