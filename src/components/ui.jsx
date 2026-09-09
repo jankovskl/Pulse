@@ -71,6 +71,7 @@ const SIDEBAR_TABS = [
   { key: 'home', label: 'Home', icon: 'house' },
   { key: 'timer', label: 'Timer', icon: 'timer' },
   { key: 'progress', label: 'Progress', icon: 'trending-up' },
+  { key: 'health', label: 'Sleep', icon: 'moon' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
   { key: 'library', label: 'Library', icon: 'library' },
   { key: 'leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
