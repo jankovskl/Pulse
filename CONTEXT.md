@@ -46,3 +46,27 @@ _Avoid_: "part of the sleep log" (caffeine is logged separately), caffeine log (
 **Sleep score**:
 The 0–100 quality measure of a sleep log: how long the sleep lasted relative to the goal, damped by a late bedtime, and further reduced by caffeine still active in the body at bedtime.
 _Avoid_: rating, penalty (that's only the caffeine component)
+
+## Motion
+
+The vocabulary the animation roadmap uses. Four intents; each piece of motion belongs to exactly one, and the intent sets its personality (see ADR 0006).
+
+**Celebration**:
+Motion that marks a *rare, earned* moment — a day completed, a badge unlocked, a streak milestone. Allowed to be bouncy and linger; its job is memory, not feedback.
+_Avoid_: confetti (one possible ingredient, not the category), reward (means in-game points elsewhere, which Pulse has none of)
+
+**Feedback**:
+Motion that confirms a *user action* the interface otherwise shows no change for — a checkmark pop, a press depression. Must be ≤200 ms and never overshoot: you repeat it dozens of times per workout.
+_Avoid_: micro-interaction (vaguer), reaction
+
+**Transition**:
+Motion that carries the user *between states of the interface* — screens, modals, a leaderboard reshuffling. Should feel like it hides a cut, not like it is watched.
+_Avoid_: animation (the whole category), navigation (the cause, not the motion)
+
+**Ambient loop**:
+Motion that runs *without being triggered*, to make the app feel alive — the glass wallpaper drift, the streak flame, the neko. The only intent that must stop outright under the reduced-motion hatch rather than degrade.
+_Avoid_: background animation (collides with CSS background-*), idle animation
+
+**Reduced-motion hatch**:
+The one global rule by which any motion in Pulse yields to the OS setting `prefers-reduced-motion`: feedback and transitions shrink to a crossfade or nothing; ambient loops stop entirely.
+_Avoid_: accessibility mode (broader, and it isn't a mode in-app), animation toggle (settings has none)

@@ -1,7 +1,44 @@
 import { Check, Clock, Dumbbell, Trophy, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { dateKey } from '../lib/data'
+import { countPlannedInWeek, workoutsInWeek } from '../lib/profile'
+
+const CONFETTI_COLORS = ['#F5A524', '#17C964', 'var(--color-accent)', 'var(--color-accent-light)']
+
+// Short burst fired from the trophy panel — only for *exceptional*
+// completions (a PR today or the weekly goal hit). Plain completions get
+// the spring entrance alone, so confetti never becomes wallpaper.
+function Confetti() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => ({
+        x: (Math.random() - 0.5) * 260,
+        y: 140 + Math.random() * 180,
+        r: 240 + Math.random() * 480,
+        delay: 250 + Math.random() * 250,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      })),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[18px] z-10 flex justify-center" aria-hidden>
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            background: p.color,
+            animationDelay: `${p.delay}ms`,
+            '--cf-x': `${p.x}px`,
+            '--cf-y': `${p.y}px`,
+            '--cf-r': `${p.r}deg`,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export default function WorkoutSummary({ day, session, onClose }) {
   const [show, setShow] = useState(false)
@@ -30,6 +67,13 @@ export default function WorkoutSummary({ day, session, onClose }) {
   const prs = todaysSessions.filter((s) => s.pr)
   const hasPRs = prs.length > 0
 
+  // Exceptional = this logged workout also filled the plan-derived weekly
+  // goal (ADR 0001). Sessions are counted per distinct date, so today's
+  // completion is already included. (Plain call — a hook here would sit
+  // after the early return above and break the hook order.)
+  const planned = countPlannedInWeek(store.plan)
+  const goalHit = planned > 0 && workoutsInWeek(store.sessions) >= planned
+
   function handleClose() {
     setShow(false)
     setTimeout(onClose, 200)
@@ -48,6 +92,7 @@ export default function WorkoutSummary({ day, session, onClose }) {
         }`}
         onClick={(e) => e.stopPropagation()}
       >
+        {(hasPRs || goalHit) && show && <Confetti />}
         <button
           onClick={handleClose}
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-tile"
@@ -56,12 +101,12 @@ export default function WorkoutSummary({ day, session, onClose }) {
         </button>
 
         <div className="flex flex-col items-center gap-3 pt-2">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-good/15">
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full bg-good/15 ${show ? 'animate-trophy-drop' : 'opacity-0'}`}>
             <Check size={32} color="#17C964" strokeWidth={2.5} />
           </div>
           <h2 className="text-[24px] font-bold text-ink">Workout Complete!</h2>
           <p className="text-center text-[14px] text-sub">
-            Great session — you crushed {day.name}
+            Great work — you crushed {day.name}
           </p>
         </div>
 
@@ -110,7 +155,7 @@ export default function WorkoutSummary({ day, session, onClose }) {
           </div>
 
           {hasPRs && (
-            <div className="rounded-[16px] bg-gradient-to-br from-[#F5A524]/20 to-[#F5A524]/10 p-4 outline outline-1 outline-[#F5A524]/30">
+            <div className={`rounded-[16px] bg-gradient-to-br from-[#F5A524]/20 to-[#F5A524]/10 p-4 outline outline-1 outline-[#F5A524]/30 ${show ? 'animate-trophy-drop' : 'opacity-0'}`} style={{ animationDelay: '120ms' }}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5A524]/20">
                   <Trophy size={18} color="#F5A524" />

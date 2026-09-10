@@ -1,8 +1,12 @@
 # Caffeine sleep impact: exponential dose-time model, no cap
 
-Status: accepted (supersedes the tiered-penalty model of the original caffeine logger)
+Status: accepted (supersedes the tiered-penalty model of the original caffeine logger); reference dose halved to 200 mg by the amendment below
 
 Caffeine's effect on a night's sleep score was a hand-tuned tier table (8h+ → 0.95, …, <1h → 0.15) with a hard 50% cap and a "previous calendar day" window. We decided to replace it with a single pharmacokinetic formula fitted to a published dose/time sleep-loss table: each entry contributes its dose decayed by a 4-hour half-life, contributions sum to an *effective dose* still aboard at bedtime, and the sleep-score multiplier is `exp(−D_eff / 400)` — i.e. 400 mg still active at bedtime costs ~63% of sleep quality. The formula is self-bounding (0, 1), so the 50% cap is removed.
+
+## Amendment: penalty doubled (reference dose /400 → /200)
+
+Real-world feedback: a night with 8h at goal and perfect timing but late caffeine scored 84 — "pretty good" for a night that felt bad. We halved the reference dose to 200 mg, which doubles the penalty at every point (exp(−D/200) is the square of exp(−D/400), so a row's table loss L becomes 1−(1−L)²). 400 mg active at bedtime now costs ~86% of sleep quality; a 95 mg coffee 2 h before bed drops a perfect night from ~84 to ~72. The curve shape is untouched — still exponential in both time (4 h half-life) and dose, still uncapped; only the dose-to-penalty scaling steepened. The table below documents the *original* /400 fit; the test vectors apply the squaring transform to each row's band.
 
 ## Calibration source
 
@@ -48,6 +52,6 @@ Every row is a test vector in `sleepUtils.caffeine.test.js` (band ± 6 pp). No s
 - **Historical scores recolor.** Every sleep score with caffeine in its window changes; heatmap cells may shift red/green for existing users. Accepted deliberately.
 - **Half-life is 4 h, not the 5–6 h in the old comment.** The comment described general pharmacokinetics; the table's decay fits ~4 h, and the table is the spec.
 - **Legacy entries without `amountMg` score using their type's default dose** (coffee 95, energy 160, pre-workout 200, tea 45 mg) — previously they were guessed at a flat 50 mg-equivalent.
-- **The window is timestamp-based, not calendar-day-based**: entries in `[bedtime − 24 h, bedtime]` count — inclusive at bedtime, so the table's "dose at bedtime" worst case scores — where bedtime is resolved to a real datetime via the wake-date keying of ADR 0004 (bedtime ≥ noon → the day before the wake date; < noon → the wake date itself). Monday 16:00 coffee correctly penalizes the Mon→Tue night; caffeine after a night's bedtime belongs to the *next* night (the boundary dose decays to ~1/64 of itself by then, costing it ~1.6% at most).
+- **The window is timestamp-based, not calendar-day-based**: entries in `[bedtime − 24 h, bedtime]` count — inclusive at bedtime, so the table's "dose at bedtime" worst case scores — where bedtime is resolved to a real datetime via the wake-date keying of ADR 0004 (bedtime ≥ noon → the day before the wake date; < noon → the wake date itself). Monday 16:00 coffee correctly penalizes the Mon→Tue night; caffeine after a night's bedtime belongs to the *next* night (the boundary dose decays to ~1/64 of itself by then, costing it ~3% at most under the amended curve).
 - **Both call sites converge.** The calendar heatmap previously passed *all* caffeine entries with clock-time-only comparison (a Monday coffee penalized every historical 4pm-ish bedtime); it now shares the single windowed `caffeineImpact(caffeineLogs, sleepLog)`. `caffeineLogsForSleep` is deleted.
 - Sleep logs without a `bedtime` keep multiplier 1 — no anchor, no impact.

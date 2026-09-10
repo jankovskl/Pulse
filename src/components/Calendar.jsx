@@ -1,4 +1,5 @@
 import { Check, ChevronLeft, ChevronRight, CircleCheck, MoonStar, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { dateKey, formatDuration } from '../lib/data'
 
 // Month grid of workout history + planned days.
@@ -121,13 +122,27 @@ export function WorkoutCalendar({
 
 // Bottom sheet for assigning a workout day to a specific date (or resting).
 export function PlanDayPicker({ date, days, currentId, onPick, onClose }) {
-  if (!date) return null
+  const reduce = useReducedMotion()
+  const dur = reduce ? 0 : 0.25
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-overlay" onClick={onClose}>
-      <div
-        className="glass-panel flex w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {date && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: dur }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="glass-panel flex w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ duration: dur, ease: [0.23, 1, 0.32, 1] }}
+            onClick={(e) => e.stopPropagation()}
+          >
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-0.5">
             <span className="text-[16px] font-semibold text-soft">
@@ -176,7 +191,9 @@ export function PlanDayPicker({ date, days, currentId, onPick, onClose }) {
             {!currentId && <CircleCheck size={18} color="var(--color-accent)" />}
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

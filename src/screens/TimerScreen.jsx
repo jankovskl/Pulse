@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, CircleCheck, MoonStar, RotateCcw } from 'lucide-react'
 import { dateKey, REST_PRESETS } from '../lib/data'
 import { fmt, useTimer } from '../lib/timer'
@@ -15,6 +15,19 @@ export default function TimerScreen() {
   useEffect(() => {
     if (nav.dayId && session?.dayId !== nav.dayId) setDay(nav.dayId)
   }, [nav.dayId, session, setDay])
+
+  // Rest-over flourish: when a running countdown lands on 0, pulse the ring.
+  const prevRunning = useRef(running)
+  const [restEnded, setRestEnded] = useState(false)
+  useEffect(() => {
+    const wasRunning = prevRunning.current
+    prevRunning.current = running
+    if (wasRunning && !running && left === 0) {
+      setRestEnded(true)
+      const t = setTimeout(() => setRestEnded(false), 2100)
+      return () => clearTimeout(t)
+    }
+  }, [running, left])
 
   const plannedDay =
     store.days.find((d) => d.id === store.plan[dateKey(new Date())]) ?? null
@@ -126,6 +139,9 @@ export default function TimerScreen() {
               className="transition-all duration-1000 ease-linear"
             />
           </svg>
+          {restEnded && (
+            <span className="pointer-events-none absolute inset-[26px] rounded-full border-2 border-accent animate-rest-pulse" />
+          )}
           <button
             onClick={toggle}
             className="absolute inset-0 flex flex-col items-center justify-center gap-2.5"
@@ -137,7 +153,7 @@ export default function TimerScreen() {
             <span className="text-[68px] font-semibold leading-none tracking-[-2px] text-ink">{fmt(left)}</span>
             <span className="max-w-[240px] text-center text-[12px] text-faint">{hint}</span>
             {!running && left === 0 && justDone && (
-              <span className="mt-0.5 flex items-center gap-1.5 rounded-full bg-good/15 px-3 py-1.5">
+              <span className="animate-done-pop mt-0.5 flex items-center gap-1.5 rounded-full bg-good/15 px-3 py-1.5">
                 <CircleCheck size={12} color="#17C964" />
                 <span className="text-[10px] font-semibold text-good">
                   {justDone.name} done

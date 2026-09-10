@@ -2,10 +2,13 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { caffeineImpact, bedtimeDatetime, caffeineTimestamp, caffeineClock, caffeineDose, sleepScoreForLog, scoreBreakdown, CAFFEINE_DEFAULT_MG } from './sleepUtils.js'
 
-// --- Model (ADR 0005) ---------------------------------------------------------
-// multiplier = exp(−D_eff / 400), D_eff = Σ mg · 0.5^(hoursBeforeBed / 4),
-// over entries in [bedtime − 24h, bedtime). Every row of the calibration table
-// in docs/adr/0005 is a test vector below (band ± 6 percentage points).
+// --- Model (ADR 0005 + amendment) ---------------------------------------------
+// multiplier = exp(−D_eff / 200), D_eff = Σ mg · 0.5^(hoursBeforeBed / 4),
+// over entries in [bedtime − 24h, bedtime]. The published calibration table in
+// docs/adr/0005 was fitted with /400; the real-world amendment doubled the
+// penalty, so each table row's expected loss is now 1 − (1 − L)², where L is
+// the table's loss. Bands checked ± 9 pp — the model/table fit deviation
+// doubles along with the penalty (the study row 400 mg @ 4 h deviates most).
 
 const BED = '23:00'
 const SLEEP_DATE = '2024-01-10' // wake date; bedtime 23:00 → evening of 2024-01-09
@@ -77,10 +80,11 @@ test('caffeineImpact: entry after that night\'s bedtime is excluded (belongs to 
   assert.equal(caffeineImpact(logs, sleepLog()), 1)
 })
 
-test('caffeineImpact: a dose at exactly bedtime counts (table worst case)', () => {
+test('caffeineImpact: a dose at exactly bedtime counts (table worst case, doubled)', () => {
   const logs = [{ type: 'coffee', amountMg: 400, time: '2024-01-09T23:00:00' }]
   const loss = (1 - caffeineImpact(logs, sleepLog())) * 100
-  assert.ok(loss >= 54 && loss <= 76, `Expected ~60–70% loss, got ${loss.toFixed(1)}%`)
+  // Table said 60–70% at /400; the amendment doubles it → ~86%.
+  assert.ok(loss >= 72 && loss <= 96, `Expected ~86% loss, got ${loss.toFixed(1)}%`)
 })
 
 test('caffeineImpact: entry older than 24h before bedtime is excluded', () => {
@@ -93,8 +97,8 @@ test('caffeineImpact: Monday-afternoon coffee penalizes the Mon→Tue night', ()
   // Wake date Tuesday 2024-01-09, bedtime Monday 23:00; coffee Monday 16:00.
   const logs = [{ type: 'coffee', amountMg: 95, time: '2024-01-08T16:00:00' }]
   const impact = caffeineImpact(logs, sleepLog('23:00', '2024-01-09'))
-  // 95 mg, 7h → D_eff ≈ 28.3 → exp(−0.0707) ≈ 0.932
-  assert.ok(impact < 1 && impact > 0.9, `Expected ~0.93, got ${impact}`)
+  // 95 mg, 7h → D_eff ≈ 28.3 → exp(−28.3/200) ≈ 0.868
+  assert.ok(impact < 1 && impact > 0.8, `Expected ~0.87, got ${impact}`)
 })
 
 test('caffeineImpact: multiple entries accumulate', () => {
@@ -147,10 +151,14 @@ const TABLE = [
   [400, 0, 60, 70],
 ]
 
-const BAND = 6 // percentage points of tolerance around the published range
+const BAND = 9 // pp of tolerance around the (penalty-doubled) published range
+
+// The amendment doubles the penalty on top of the table fit: a table loss L
+// becomes 1 − (1 − L)². Each row's published band is transformed the same way.
+const amend = (lossPct) => (1 - Math.pow(1 - lossPct / 100, 2)) * 100
 
 for (const [mg, hours, low, high] of TABLE) {
-  test(`table: ${mg} mg ${hours}h before bed → ${low}–${high}% worse`, () => {
+  test(`table×2: ${mg} mg ${hours}h before bed → ${low}–${high}% table, doubled`, () => {
     // Bedtime 23:00 on 2024-01-09; the dose sits exactly `hours` before it.
     const bedMinutes = 23 * 60
     const d = new Date(2024, 0, 9, 0, bedMinutes - hours * 60) // may roll past midnight
@@ -158,8 +166,8 @@ for (const [mg, hours, low, high] of TABLE) {
     const impact = caffeineImpact([{ type: 'coffee', amountMg: mg, time: stamp }], sleepLog())
     const lossPct = (1 - impact) * 100
     assert.ok(
-      lossPct >= low - BAND && lossPct <= high + BAND,
-      `${mg} mg @ ${hours}h: expected ${low}–${high}% (±${BAND}), got ${lossPct.toFixed(1)}%`,
+      lossPct >= amend(low) - BAND && lossPct <= amend(high) + BAND,
+      `${mg} mg @ ${hours}h: expected ${amend(low).toFixed(1)}–${amend(high).toFixed(1)}% (±${BAND}), got ${lossPct.toFixed(1)}%`,
     )
   })
 }
@@ -202,14 +210,25 @@ test('caffeineClock: today shows HH:MM, older shows "Yesterday HH:MM"', () => {
 
 // --- sleepScoreForLog / scoreBreakdown: one scoring path for every surface -----
 
-test('sleepScoreForLog: perfect night with a modest late coffee lands mid-80s', () => {
-  // The reported scenario: 8h at the goal, perfect timing, ~70 mg aboard at
-  // bed → duration 100 × timing 100 × caffeine ~0.84 ≈ 84.
+test('sleepScoreForLog: perfect night with a modest late coffee drops into the 70s', () => {
+  // The reported scenario: 8h at the goal, perfect timing, ~67 mg still aboard
+  // at bed. The old /400 fit gave 84 ("pretty good" for a bad night); the
+  // amendment doubles the penalty → 100 × 100 × exp(−67/200) ≈ 72.
   const log = sleepLog('23:00', '2024-01-10')
   log.hours = 8
   const logs = [at('21:00', 95)] // 2h before bed: 95·0.5^(0.5) ≈ 67 mg aboard
   const score = sleepScoreForLog(log, 8, '23:00', logs)
-  assert.ok(score >= 80 && score <= 87, `expected ~84, got ${score}`)
+  assert.ok(score >= 68 && score <= 76, `expected ~72, got ${score}`)
+})
+
+test('sleepScoreForLog: an early coffee barely dents a good night', () => {
+  // The curve stays exponential: distance still buys forgiveness. 8h at the
+  // goal, perfect timing, coffee at 13:00 (10h before a 23:00 bedtime) →
+  // 95·0.5^2.5 ≈ 17 mg aboard → multiplier ≈ 0.92 → high-80s/low-90s.
+  const log = sleepLog('23:00', '2024-01-10')
+  log.hours = 8
+  const score = sleepScoreForLog(log, 8, '23:00', [at('13:00', 95)])
+  assert.ok(score >= 88 && score <= 95, `expected ~92, got ${score}`)
 })
 
 test('sleepScoreForLog: same night without caffeine scores 100', () => {

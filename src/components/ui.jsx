@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { fmt, useTimer } from '../lib/timer'
 import { decorationById } from '../lib/badges'
 
@@ -14,11 +15,34 @@ export function navigate(screen) {
   if (navigateFn) navigateFn(screen)
 }
 
+// Linear depth for directional screen transitions (wave 2). Dock tabs keep
+// dock order; secondary screens sit at the depth of their parent group, so
+// a same-depth jump (home → calendar) crossfades while tab-order jumps slide.
+export const SCREEN_DEPTH = {
+  home: 0,
+  day: 0,
+  library: 0,
+  calendar: 0,
+  timer: 1,
+  progress: 2,
+  leaderboard: 2.5,
+  health: 3,
+  'health-month': 3,
+  settings: 4,
+}
+
 export function NavProvider({ children }) {
-  const [view, setView] = useState({ name: 'home' })
+  const [view, setView] = useState({ name: 'home', dir: 0 })
+  const lastKey = useRef('home')
   const nav = {
     ...view,
-    go: (name, extra = {}) => setView({ name, ...extra }),
+    go: (name, extra = {}) => {
+      const prev = SCREEN_DEPTH[lastKey.current] ?? 0
+      const next = SCREEN_DEPTH[name] ?? 0
+      const dir = next > prev ? 1 : next < prev ? -1 : 0
+      lastKey.current = name
+      setView({ name, dir, ...extra })
+    },
   }
   navigateFn = nav.go
   return <NavCtx.Provider value={nav}>{children}</NavCtx.Provider>
@@ -465,21 +489,38 @@ export function useViewportShift(open) {
 
 export function Modal({ open, onClose, children }) {
   const [panelRef, shift] = useViewportShift(open)
+  // Framer motion animates inline via JS, so the CSS reduced-motion hatch
+  // doesn't reach it — yield explicitly (ADR 0006).
+  const reduce = useReducedMotion()
+  const dur = reduce ? 0 : 0.2
 
-  if (!open) return null
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef}
-        className="glass-panel max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8 transition-all duration-200"
-        style={{ transform: `translateY(${shift}px)` }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: dur }}
+          onClick={onClose}
+        >
+          <motion.div
+            ref={panelRef}
+            className="glass-panel max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-[28px] bg-card p-5 pb-8"
+            // Keyboard nudge rides the separate CSS `translate` property so
+            // it doesn't collide with the animated transform.
+            style={{ translate: shift ? `0 ${shift}px` : undefined }}
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+            transition={{ duration: dur, ease: [0.23, 1, 0.32, 1] }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }

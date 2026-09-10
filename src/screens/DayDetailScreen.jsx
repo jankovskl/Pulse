@@ -82,6 +82,9 @@ export default function DayDetailScreen() {
   const undoTimer = useRef(null)
   const [confirmStop, setConfirmStop] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  // Which exercise was just ticked — only that one's check pops (a Celebration
+  // fires on the action, not every time an already-done row mounts).
+  const [justDoneId, setJustDoneId] = useState(null)
 
   useEffect(() => () => clearTimeout(undoTimer.current), [])
 
@@ -172,6 +175,8 @@ export default function DayDetailScreen() {
     )
 
     store.toggleExercise(day.id, e.id)
+
+    if (!e.done) setJustDoneId(e.id)
 
     // Show summary if we just completed all exercises and have an active session
     if (!wasAllDone && willBeAllDone && timer.session?.dayId === day.id && timer.session?.startedAt) {
@@ -310,7 +315,11 @@ export default function DayDetailScreen() {
                     className="flex h-9 w-9 shrink-0 items-center justify-center"
                     title="Mark not done"
                   >
-                    <CircleCheck size={16} color="#17C964" />
+                    <CircleCheck
+                      size={16}
+                      color="#17C964"
+                      className={justDoneId === e.id ? 'animate-check-pop' : undefined}
+                    />
                   </button>
                 ) : (
                   <button

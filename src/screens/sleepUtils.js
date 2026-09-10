@@ -81,13 +81,14 @@ export function scoreBreakdown(log, goal = 8, idealBedtime = '23:00', caffeineLo
 }
 
 // --- Caffeine → sleep impact -------------------------------------------------
-// Model (ADR 0005): each entry contributes its dose decayed by a 4-hour
-// half-life; contributions sum to an effective dose still aboard at bedtime,
-// and the sleep-score multiplier is exp(−D_eff / 400) — 400 mg active at
-// bedtime costs ~63% of sleep quality. Fitted to the published dose/time
-// sleep-loss table reproduced in docs/adr/0005; every row is a test vector in
-// sleepUtils.caffeine.test.js. The formula is self-bounding in (0, 1), so the
-// old 50% cap is gone.
+// Model (ADR 0005 + amendment): each entry contributes its dose decayed by a
+// 4-hour half-life; contributions sum to an effective dose still aboard at
+// bedtime, and the sleep-score multiplier is exp(−D_eff / 200). The original
+// fit to the published dose/time table (docs/adr/0005) used /400; real-world
+// feedback — a late-caffeine night scoring "pretty good" while sleep felt
+// bad — doubled the penalty, so now 400 mg active at bedtime costs ~86% of
+// sleep quality. Equivalent to squaring the table-implied multiplier. The
+// formula is self-bounding in (0, 1), so there is no cap.
 
 export const CAFFEINE_DEFAULT_MG = { coffee: 95, energy: 160, preworkout: 200, tea: 45 }
 
@@ -140,7 +141,7 @@ export function caffeineImpact(caffeineLogs, sleepLog) {
     effectiveDose += caffeineDose(entry) * Math.pow(0.5, hoursBeforeBed / 4)
   }
   if (effectiveDose === 0) return 1
-  return Math.exp(-effectiveDose / 400)
+  return Math.exp(-effectiveDose / 200)
 }
 
 // --- Caffeine entry timestamps ------------------------------------------------
