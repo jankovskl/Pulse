@@ -1,12 +1,15 @@
 {
   "name": "webapp",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node --test",
+    "check:drift": "node scripts/drift.js",
+    "release": "node scripts/release.js",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

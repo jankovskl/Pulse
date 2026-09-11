@@ -129,7 +129,7 @@ export default function HealthMonthScreen() {
   const label = cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="flex flex-col gap-4 p-4" data-tutorial="health-month-screen">
+    <div className="flex flex-col gap-4 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <button

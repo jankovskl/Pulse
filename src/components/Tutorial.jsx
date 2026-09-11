@@ -1,115 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, X } from 'lucide-react'
 import { useNav } from './ui'
+import { TUTORIAL_STEPS } from '../lib/tutorialSteps'
 
-const TUTORIAL_STEPS = [
-  {
-    id: 'welcome',
-    title: 'Welcome to Pulse! 💪',
-    description: 'Let\'s take a quick tour to get you started with your fitness journey.',
-    target: null,
-    position: 'center',
-    tab: 'home',
-  },
-  {
-    id: 'home-split',
-    title: 'Your Workout Split',
-    description: 'Create your workout days here. Each day can have multiple exercises targeting different muscle groups.',
-    target: '[data-tutorial="home-split"]',
-    position: 'top',
-    tab: 'home',
-  },
-  {
-    id: 'home-calendar',
-    title: 'Weekly Calendar',
-    description: 'See your week at a glance. Tap any day to schedule a workout from your split.',
-    target: '[data-tutorial="home-week"]',
-    position: 'top',
-    tab: 'home',
-  },
-  {
-    id: 'timer-ring',
-    title: 'Rest Timer',
-    description: 'Tap the ring to start timing your rest between sets. The circle fills up as time counts down.',
-    target: '[data-tutorial="timer-ring"]',
-    position: 'top',
-    tab: 'timer',
-  },
-  {
-    id: 'timer-presets',
-    title: 'Quick Presets',
-    description: 'Use preset buttons (30s, 60s, 90s, 2m, 3m) to instantly start common rest periods.',
-    target: '[data-tutorial="timer-presets"]',
-    position: 'top',
-    tab: 'timer',
-  },
-  {
-    id: 'progress-charts',
-    title: 'Track Your Progress',
-    description: 'View interactive charts showing your strength gains over time. See your PRs and workout history.',
-    target: '[data-tutorial="progress-chart"]',
-    position: 'top',
-    tab: 'progress',
-  },
-  {
-    id: 'leaderboard-compete',
-    title: 'Compete & Connect',
-    description: 'See top lifters in each exercise. Click profiles to view their stats and live workout status.',
-    target: '[data-tutorial="leaderboard-top3"]',
-    position: 'top',
-    tab: 'leaderboard',
-  },
-  {
-    id: 'leaderboard-status',
-    title: 'Live Workout Status',
-    description: 'When someone is working out, you\'ll see a 🟡 pulsing indicator showing their current exercise and progress in real-time!',
-    target: '[data-tutorial="leaderboard-list"]',
-    position: 'top',
-    tab: 'leaderboard',
-  },
-  {
-    id: 'calendar-plan',
-    title: 'Plan Your Week',
-    description: 'Schedule your workout days on the calendar. Tap any date to assign a workout from your split.',
-    target: '[data-tutorial="calendar-grid"]',
-    position: 'top',
-    tab: 'calendar',
-  },
-  {
-    id: 'calendar-streak',
-    title: 'Track Consistency',
-    description: 'See your training streak and patterns. Consistency is key to reaching your goals!',
-    target: '[data-tutorial="calendar-grid"]',
-    position: 'top',
-    tab: 'calendar',
-  },
-  {
-    id: 'settings-profile',
-    title: 'Customize Your Profile',
-    description: 'Set your nickname, avatar, and bio. Unlock badges and decorations by hitting milestones!',
-    target: '[data-tutorial="settings-profile"]',
-    position: 'top',
-    tab: 'settings',
-  },
-  {
-    id: 'settings-theme',
-    title: 'Choose Your Theme',
-    description: 'Pick your favorite color scheme and switch between light/dark mode.',
-    target: '[data-tutorial="settings-theme"]',
-    position: 'top',
-    tab: 'settings',
-  },
-  {
-    id: 'complete',
-    title: 'You\'re All Set! 🎉',
-    description: 'Start by creating your first workout day in the Home tab. Track your progress, compete with others, and crush your goals!',
-    target: null,
-    position: 'center',
-    tab: 'home',
-  },
-]
-
-export default function Tutorial({ onComplete }) {
+// Renders whatever steps it is given: the full first-run tour by default, or
+// the filtered What's new tour (see lib/tutorialSteps).
+export default function Tutorial({ onComplete, steps = TUTORIAL_STEPS, lastLabel = 'Get Started' }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [show, setShow] = useState(false)
   const [targetRect, setTargetRect] = useState(null)
@@ -117,9 +13,9 @@ export default function Tutorial({ onComplete }) {
   const tooltipRef = useRef(null)
   const nav = useNav()
 
-  const step = TUTORIAL_STEPS[currentStep]
+  const step = steps[currentStep]
   const isFirst = currentStep === 0
-  const isLast = currentStep === TUTORIAL_STEPS.length - 1
+  const isLast = currentStep === steps.length - 1
 
   useEffect(() => {
     // Animate in
@@ -325,7 +221,7 @@ export default function Tutorial({ onComplete }) {
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex gap-1">
-              {TUTORIAL_STEPS.map((_, idx) => (
+              {steps.map((_, idx) => (
                 <div
                   key={idx}
                   className={`h-1.5 rounded-full transition-all ${
@@ -352,7 +248,7 @@ export default function Tutorial({ onComplete }) {
                 onClick={handleNext}
                 className="flex h-10 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-white"
               >
-                {isLast ? 'Get Started' : isFirst ? "Let's Go" : 'Next'}
+                {isLast ? lastLabel : isFirst ? "Let's Go" : 'Next'}
                 <ArrowRight size={16} />
               </button>
             </div>

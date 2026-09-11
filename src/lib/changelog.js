@@ -1,3 +1,5 @@
+export const UNRELEASED = 'Unreleased'
+
 export function parseChangelog(markdown) {
   const entries = []
   let current = null
@@ -10,6 +12,13 @@ export function parseChangelog(markdown) {
     const head = line.match(/^##\s+(\S+)(?:\s*[—-]\s*(.+))?$/)
     if (head) {
       const [, version, date] = head
+      // The Unreleased section is the staging area for the next release cut —
+      // What's new promises only what the user can use now, so skip it (and
+      // its bullets, by leaving `current` null).
+      if (version.toLowerCase() === UNRELEASED.toLowerCase()) {
+        current = null
+        continue
+      }
       current = { version, date: date ?? null, items: [] }
       entries.push(current)
       continue
@@ -19,6 +28,18 @@ export function parseChangelog(markdown) {
     }
   }
   return entries
+}
+
+// Compare two dotted numeric versions (semver core only — Pulse has no
+// prereleases). Returns <0, 0 or >0 like a sort comparator.
+export function compareVersions(a, b) {
+  const pa = String(a).split('.')
+  const pb = String(b).split('.')
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (Number(pa[i]) || 0) - (Number(pb[i]) || 0)
+    if (d) return d
+  }
+  return 0
 }
 
 export const CHANGELOG_URL = 'https://raw.githubusercontent.com/jankovskl/pulse/main/CHANGELOG.md'

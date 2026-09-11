@@ -286,7 +286,7 @@ export default function HomeScreen() {
 
   return (
     <Screen activeTab="home">
-      <div className="flex flex-col gap-6" data-tutorial="home-screen">
+      <div className="flex flex-col gap-6">
         <InstallBanner />
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between">

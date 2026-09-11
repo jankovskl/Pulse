@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseChangelog, CHANGELOG_URL } from './changelog.js'
+import { parseChangelog, compareVersions, CHANGELOG_URL } from './changelog.js'
 
 test('parses version heading with date and bullets', () => {
   const md = `# Pulse Changelog
@@ -45,4 +45,25 @@ test('accepts plain hyphen as date separator', () => {
 
 test('changelog URL points at the repo main branch', () => {
   assert.equal(CHANGELOG_URL, 'https://raw.githubusercontent.com/jankovskl/pulse/main/CHANGELOG.md')
+})
+
+test('Unreleased section and its bullets are skipped', () => {
+  const md = `# Pulse Changelog
+
+## Unreleased
+- not shipped yet
+
+## 2.3.0 — 2026-09-01
+- shipped
+`
+  assert.deepEqual(parseChangelog(md), [
+    { version: '2.3.0', date: '2026-09-01', items: ['shipped'] },
+  ])
+})
+
+test('compareVersions orders dotted numeric versions', () => {
+  assert.ok(compareVersions('2.10.0', '2.9.9') > 0)
+  assert.ok(compareVersions('2.2.0', '2.2.0') === 0)
+  assert.ok(compareVersions('0.1.1', '2.2.0') < 0)
+  assert.ok(compareVersions('2.2', '2.2.0') === 0)
 })

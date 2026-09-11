@@ -47,6 +47,38 @@ _Avoid_: "part of the sleep log" (caffeine is logged separately), caffeine log (
 The 0–100 quality measure of a sleep log: how long the sleep lasted relative to the goal, damped by a late bedtime, and further reduced by caffeine still active in the body at bedtime.
 _Avoid_: rating, penalty (that's only the caffeine component)
 
+**Changelog**:
+The ledger of user-facing releases — one entry per release version — that the What's new screen renders live. It is the source of truth for what shipped and for version numbering.
+_Avoid_: release notes (that's the GitHub Release text, which derives from it), "What's new" (that's the screen)
+
+**Release version**:
+Pulse's single public version number: the newest entry of the changelog. Every manifest (web, desktop, updater) derives from it; when copies disagree, the changelog is right.
+_Avoid_: app version, bundle version (those are derived copies)
+
+**First-run tour**:
+The guided walkthrough a signed-in user sees once, covering the whole app.
+_Avoid_: onboarding; "the tutorial" when the distinction from the What's new tour matters
+
+**What's new tour**:
+An incremental walkthrough showing only the steps newer than a user's acknowledged version — never a replay of the first-run tour.
+_Avoid_: tutorial update, re-onboarding
+
+**Acknowledged version**:
+The newest release version whose news a user has seen. While the changelog is newer, the app signals unacknowledged news.
+_Avoid_: seen flag, read state
+
+**Unreleased**:
+The changelog section where bullets accumulate as features land on `main`, before any version is cut. It is never shown in What's new — the sheet promises what the user can use now.
+_Avoid_: WIP, staging (implementation-flavored); a `vUnreleased` entry
+
+**Release cut**:
+Renaming the Unreleased section to a new release version and propagating that version everywhere it is derived from. The only moment a version number changes.
+_Avoid_: bump (ambiguous — manifests bump as a *consequence*, not the act), publish
+
+**Drift check**:
+The mechanical verification that the changelog, the tutorial steps and anchors, and the version manifests agree. It gates deploys and releases; it does not judge prose.
+_Avoid_: lint (that's Oxlint), validation (vaguer)
+
 ## Motion
 
 The vocabulary the animation roadmap uses. Four intents; each piece of motion belongs to exactly one, and the intent sets its personality (see ADR 0006).

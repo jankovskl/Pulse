@@ -28,7 +28,9 @@ import {
 } from 'lucide-react'
 import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
 import { permissionState, requestPermission } from '../lib/notifications'
-import { fetchChangelog } from '../lib/changelog'
+import { compareVersions } from '../lib/changelog'
+import { loadChangelog } from '../lib/changelog-bundled'
+import { TUTORIAL_STEPS, newStepsSince } from '../lib/tutorialSteps'
 import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
 import { usePwaInstall } from '../lib/pwaProvider'
@@ -52,7 +54,7 @@ import { useTimer } from '../lib/timer'
 import AuthModal from '../components/AuthModal'
 import AccountEditor from '../components/AccountEditor'
 import { Avatar, DecoratedAvatar, DecorationTitle, DECORATION_FRAMES, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
-import { useTutorial } from '../lib/tutorial'
+import { useTutorial, getAcknowledged, setAcknowledged, startWhatsNewTour } from '../lib/tutorial'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#A855F7', '#FF383C', '#0485F7']
 
@@ -213,7 +215,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     let cancelled = false
-    fetchChangelog()
+    loadChangelog()
       .then((entries) => {
         if (!cancelled) {
           setChangelog(entries)
@@ -227,6 +229,24 @@ export default function SettingsScreen() {
       cancelled = true
     }
   }, [])
+
+  // What's new news state: unseen = the live changelog is newer than what
+  // this user acknowledged. Users with no ack yet inherit the current top
+  // version — the mechanism starts counting from the next release, so nobody
+  // is nagged with a tour of steps they've already had.
+  const latestVersion = changelog?.length ? changelog[0].version : null
+  const effectiveAck = getAcknowledged(auth.user?.id) ?? latestVersion
+  const unseenNews = !!latestVersion && compareVersions(latestVersion, effectiveAck) > 0
+  // Snapshot of the tour steps taken *before* opening acks the news —
+  // otherwise the "Show what's new" button would vanish the instant it
+  // could first be seen.
+  const [tourSteps, setTourSteps] = useState([])
+
+  function openWhatsNew() {
+    setTourSteps(newStepsSince(TUTORIAL_STEPS, effectiveAck))
+    if (latestVersion) setAcknowledged(auth.user?.id, latestVersion)
+    setSheetOpen(true)
+  }
 
   function exportData() {
     const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], {
@@ -817,9 +837,16 @@ export default function SettingsScreen() {
             subtitle={
               changelog?.length
                 ? `v${changelog[0].version} · ${changelog[0].items[0] ?? 'recent changes'}`
-                : 'Version 2.0.1 — rest timer, charts'
+                : 'Loading…'
             }
-            onClick={() => setSheetOpen(true)}
+            right={
+              unseenNews ? (
+                <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">
+                  New
+                </span>
+              ) : undefined
+            }
+            onClick={openWhatsNew}
           />
         </div>
 
@@ -851,6 +878,18 @@ export default function SettingsScreen() {
                 <X size={15} color="var(--color-sub)" />
               </button>
             </div>
+            {tourSteps.length > 0 && (
+              <button
+                onClick={() => {
+                  setSheetOpen(false)
+                  startWhatsNewTour(tourSteps)
+                }}
+                className="flex h-10 items-center justify-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-white"
+              >
+                <Sparkles size={15} />
+                Show what's new
+              </button>
+            )}
             <div className="flex flex-col gap-4 overflow-y-auto">
               {failed ? (
                 <div className="flex flex-col items-center gap-3 py-8">
@@ -858,7 +897,7 @@ export default function SettingsScreen() {
                   <button
                     onClick={() => {
                       setFailed(false)
-                      fetchChangelog()
+                      loadChangelog()
                         .then(setChangelog)
                         .catch(() => setFailed(true))
                     }}

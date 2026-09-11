@@ -23,6 +23,25 @@ jobs:
           workspaces: './src-tauri -> target'
       - name: Install frontend dependencies
         run: npm install
+      - name: Drift check
+        run: npm run check:drift
+      # The GitHub Release notes are derived from the changelog (ADR 0007) —
+      # the tag v<version> selects its section, so nothing is written twice.
+      - name: Release notes from changelog
+        id: notes
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          {
+            echo "body<<NOTES_EOF"
+            awk -v want="$VERSION" '
+              /^## / { keep = ($2 == want); next }
+              keep && /^- / { print }
+            ' CHANGELOG.md
+            echo ""
+            echo "Download the installer below, or update in-app."
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
       # TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD are
       # GitHub Actions secrets the repo owner must add before CI can sign and
       # publish updater artifacts:
@@ -38,6 +57,6 @@ jobs:
         with:
           tagName: app-v__VERSION__
           releaseName: 'Pulse v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false

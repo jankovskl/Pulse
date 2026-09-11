@@ -8,7 +8,7 @@ import { PwaInstallProvider } from './lib/pwaProvider'
 import { DEFAULT_THEME } from './lib/themes'
 import { NavProvider, useNav } from './components/ui'
 import Tutorial from './components/Tutorial'
-import { useTutorial } from './lib/tutorial'
+import { useTutorial, subscribeWhatsNewTour, getWhatsNewTour, startWhatsNewTour } from './lib/tutorial'
 import HomeScreen from './screens/HomeScreen'
 import DayDetailScreen from './screens/DayDetailScreen'
 import LibraryScreen from './screens/LibraryScreen'
@@ -46,15 +46,25 @@ function ScreenBody({ name }) {
   }
 }
 
+// Utility to detect low‑end mobile browsers (mid‑range Android/Chrome)
+function isMobilePhone() {
+  if (typeof navigator === 'undefined') return false
+  return /android|iphone|ipad|mobile|tablet/i.test(navigator.userAgent)
+}
+
 function Router() {
   const nav = useNav()
   const auth = useAuth()
   const reduce = useReducedMotion()
   const { shouldShowTutorial, completeTutorial } = useTutorial()
   const [showTutorial, setShowTutorial] = useState(false)
+  // What's new tour: launched from the Settings sheet via the module store
+  // (its steps navigate between tabs, so it must live above the router).
+  const [tourSteps, setTourSteps] = useState(() => getWhatsNewTour())
+  useEffect(() => subscribeWhatsNewTour(() => setTourSteps(getWhatsNewTour())), [])
 
   useEffect(() => {
-    // Tutorial is account-scoped: only show for signed-in users who haven't
+    // Tutorial is account‑scoped: only show for signed‑in users who haven't
     // completed it yet (e.g. right after first login on a new account).
     if (!auth.user) {
       setShowTutorial(false)
@@ -73,10 +83,21 @@ function Router() {
   const navDir = nav.dir > 0 ? 1 : nav.dir < 0 ? -1 : 0
   const enterX = reduce || !navDir ? 0 : navDir * 28
 
+  // Mobile‑specific tweak: shorter duration on mid‑range phones to reduce jank.
+  const mobile = isMobilePhone()
+  const transitionDuration = mobile ? 0.12 : navDir ? 0.2 : 0.16
+
   return (
     <>
       {showTutorial && <Tutorial onComplete={handleTutorialComplete} />}
-      {/* popLayout: the departing screen leaves flow so the two full-page
+      {tourSteps && (
+        <Tutorial
+          steps={tourSteps}
+          lastLabel="Done"
+          onComplete={() => startWhatsNewTour(null)}
+        />
+      )}
+      {/* popLayout: the departing screen leaves flow so the two full‑page
           screens crossfade/slide over each other instead of stacking
           vertically. `custom` hands the exiting screen the *current* nav
           direction, so it slides out opposite to the newcomer. */}
@@ -86,10 +107,12 @@ function Router() {
           initial={{ opacity: 0, x: enterX }}
           animate={{ opacity: 1, x: 0 }}
           exit={(dir) => ({ opacity: 0, x: reduce || !dir ? 0 : -dir * 28 })}
+          // Apply hardware‑acceleration hint via will‑change
+          style={{ willChange: 'opacity, transform' }}
           transition={
             reduce
               ? { duration: 0 }
-              : { duration: navDir ? 0.2 : 0.16, ease: [0.23, 1, 0.32, 1] }
+              : { duration: transitionDuration, ease: [0.23, 1, 0.32, 1] }
           }
         >
           <ScreenBody name={nav.name} />
@@ -106,7 +129,7 @@ const ACCENT_LIGHT = {
   '#EC4899': '#F58ABF',
   '#FF383C': '#FF7A7D',
   '#A855F7': '#C084FC',
-}
+};
 
 function ThemeSync() {
   const store = useStore()
@@ -124,7 +147,6 @@ function NekoCat() {
   useEffect(() => {
     let cancelled = false
     // The neko is an ambient loop — under reduced motion it stops outright
-    // (ADR 0006). CSS can't touch an external rAF script, so gate it here.
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     const spawn = () => {
       if (cancelled || window.neko || !window.createNeko) return

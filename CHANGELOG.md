@@ -1,5 +1,12 @@
 # Pulse Changelog
 
+## Unreleased
+- What's new now flags unseen releases — a "New" pill shows in Settings until you've read them
+- New features get their own mini-tour: "Show what's new" inside the What's new sheet
+- The Sleep tab now appears in the first-run tour
+- The desktop app shows What's new offline, from a copy bundled at build time
+- Improve screen‑transition performance on low‑end mobile browsers by shortening transition duration, adding a `will‑change` hint, and gating the tweak to Android/iOS devices
+
 ## 2.2.0 — 2026-08-15
 - New Calendar screen: plan workouts per date and browse your month-by-month history
 - Streaks now weather up to 2 rest days — a missed day no longer resets your chain
