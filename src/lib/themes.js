@@ -209,6 +209,74 @@ export const THEMES = [
     glass: true,
     colors: gradientThemeColors('#F3904F', '#3B4371'),
   },
+  // Muted / low-luminance gradients from gradient.page/ui-gradients. Chosen to
+  // stay readable under the light gradient ink tokens — no bright stops.
+  {
+    id: 'g-moss',
+    name: 'Moss',
+    glass: true,
+    colors: gradientThemeColors('#134E5E', '#71B280'),
+  },
+  {
+    id: 'g-under-the-lake',
+    name: 'Under the Lake',
+    glass: true,
+    colors: gradientThemeColors('#093028', '#237A57'),
+  },
+  {
+    id: 'g-forest',
+    name: 'Forest',
+    glass: true,
+    colors: gradientThemeColors('#5A3F37', '#2C7744'),
+  },
+  {
+    id: 'g-mirage',
+    name: 'Mirage',
+    glass: true,
+    colors: gradientThemeColors('#16222A', '#3A6073'),
+  },
+  {
+    id: 'g-midnight-city',
+    name: 'Midnight City',
+    glass: true,
+    colors: gradientThemeColors('#232526', '#414345'),
+  },
+  {
+    id: 'g-royal',
+    name: 'Royal',
+    glass: true,
+    colors: gradientThemeColors('#141E30', '#243B55'),
+  },
+  {
+    id: 'g-vicious-stance',
+    name: 'Vicious Stance',
+    glass: true,
+    colors: gradientThemeColors('#29323C', '#485563'),
+  },
+  {
+    id: 'g-selenium',
+    name: 'Selenium',
+    glass: true,
+    colors: gradientThemeColors('#3C3B3F', '#605C3C'),
+  },
+  {
+    id: 'g-aubergine',
+    name: 'Aubergine',
+    glass: true,
+    colors: gradientThemeColors('#AA076B', '#61045F'),
+  },
+  {
+    id: 'g-moonlit-asteroid',
+    name: 'Moonlit Asteroid',
+    glass: true,
+    colors: gradientThemeColors('#0F2027', '#2C5364', '#203A43'),
+  },
+  {
+    id: 'g-lawrencium',
+    name: 'Lawrencium',
+    glass: true,
+    colors: gradientThemeColors('#0F0C29', '#24243E', '#302B63'),
+  },
 ]
 
 export function themeById(id) {

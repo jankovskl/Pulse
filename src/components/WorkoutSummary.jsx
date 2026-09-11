@@ -87,7 +87,7 @@ export default function WorkoutSummary({ day, session, onClose }) {
       onClick={handleClose}
     >
       <div
-        className={`relative flex w-full max-w-md flex-col gap-5 rounded-[28px] bg-field p-6 shadow-2xl transition-transform duration-200 ${
+        className={`relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto overscroll-contain rounded-[28px] bg-field p-6 shadow-2xl transition-transform duration-200 ${
           show ? 'scale-100' : 'scale-95'
         }`}
         onClick={(e) => e.stopPropagation()}

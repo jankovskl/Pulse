@@ -50,8 +50,25 @@ test('gradient themes are glass with light ink', () => {
   }
 })
 
-test('only King Yna uses a mid stop', () => {
+test('three-stop themes declare a mid token between bg and bg2', () => {
   const withMid = THEMES.filter((t) => t.colors.mid)
-  assert.deepEqual(withMid.map((t) => t.id), ['g-king-yna'])
-  assert.equal(withMid[0].colors.mid, '#B21F1F')
+  assert.deepEqual(withMid.map((t) => t.id), ['g-king-yna', 'g-moonlit-asteroid', 'g-lawrencium'])
+  for (const t of withMid) assert.ok(t.colors.mid.startsWith('#'))
+})
+
+test('the muted gradient set stays dark enough for light ink to read', () => {
+  const lum = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const muted = THEMES.filter((x) =>
+    ['g-moss', 'g-under-the-lake', 'g-forest', 'g-mirage', 'g-midnight-city', 'g-royal', 'g-vicious-stance', 'g-selenium', 'g-aubergine', 'g-moonlit-asteroid', 'g-lawrencium'].includes(x.id))
+  assert.equal(muted.length, 11)
+  for (const t of muted) {
+    const stops = [t.colors.bg, t.colors.mid, t.colors.bg2].filter(Boolean)
+    const maxLum = Math.max(...stops.map(lum))
+    // Mid-tone at most: Moss's #71B280 sits at ~0.63; anything past this is a
+    // saturated neon color that fights the light gradient ink.
+    assert.ok(maxLum <= 0.65, `${t.id} is too bright (peak stop luminance ${maxLum.toFixed(2)})`)
+  }
 })

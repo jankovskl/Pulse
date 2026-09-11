@@ -92,8 +92,15 @@ export function TimerProvider({ children }) {
     let next = s.exIdx + 1
     while (next < day.exercises.length && day.exercises[next].done) next++
     if (next >= day.exercises.length) {
-      // Check if all exercises are now done - show summary
-      const allDone = day.exercises.every((e) => e.done)
+      // Check if all exercises are now done - show summary.
+      //
+      // `day` is the snapshot captured at the top of this function, BEFORE the
+      // toggleExercise call above. React commits that toggle asynchronously, so
+      // the exercise we just completed (`justCompletedId`) is still `done:
+      // false` in this snapshot. Treating it as done locally is what lets the
+      // FINAL set flip the summary — otherwise every-exercise checks a stale
+      // field and the popup only appears on one extra completion.
+      const allDone = day.exercises.every((e) => e.done || e.id === justCompletedId)
       if (allDone && s.startedAt) {
         setShowSummary(true)
       }

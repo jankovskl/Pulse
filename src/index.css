@@ -169,6 +169,17 @@
 [data-theme='g-king-yna'] { --color-bg: #1a2a6c; --color-bg-mid: #b21f1f; --color-bg2: #fdbb2d; }
 [data-theme='g-pacific-dream'] { --color-bg: #34e89e; --color-bg2: #0f3443; }
 [data-theme='g-dawn'] { --color-bg: #f3904f; --color-bg2: #3b4371; }
+[data-theme='g-moss'] { --color-bg: #134e5e; --color-bg2: #71b280; }
+[data-theme='g-under-the-lake'] { --color-bg: #093028; --color-bg2: #237a57; }
+[data-theme='g-forest'] { --color-bg: #5a3f37; --color-bg2: #2c7744; }
+[data-theme='g-mirage'] { --color-bg: #16222a; --color-bg2: #3a6073; }
+[data-theme='g-midnight-city'] { --color-bg: #232526; --color-bg2: #414345; }
+[data-theme='g-royal'] { --color-bg: #141e30; --color-bg2: #243b55; }
+[data-theme='g-vicious-stance'] { --color-bg: #29323c; --color-bg2: #485563; }
+[data-theme='g-selenium'] { --color-bg: #3c3b3f; --color-bg2: #605c3c; }
+[data-theme='g-aubergine'] { --color-bg: #aa076b; --color-bg2: #61045f; }
+[data-theme='g-moonlit-asteroid'] { --color-bg: #0f2027; --color-bg-mid: #203a43; --color-bg2: #2c5364; }
+[data-theme='g-lawrencium'] { --color-bg: #0f0c29; --color-bg-mid: #302b63; --color-bg2: #24243e; }
 
 :is([data-theme='glass'], [data-theme^='g-']) .screen-bg,
 :is([data-theme='glass'], [data-theme^='g-']) .bg-surface,
