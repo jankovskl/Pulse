@@ -1,8 +1,9 @@
 // Release cut: renames the changelog's `## Unreleased` section to a new
-// version dated today, rewrites `since: UNRELEASED` tutorial markers to the
-// same version, and syncs every version manifest from it. The changelog is
-// the source of truth for the version (see ADR 0007) — these manifests are
-// derived copies and must never be hand-edited.
+// version dated today, rewrites `since: UNRELEASED` markers in the tutorial
+// steps and the What's new notes to the same version, and syncs every version
+// manifest from it. The changelog is the source of truth for the version
+// (see ADR 0007) — these manifests are derived copies and must never be
+// hand-edited.
 //
 // Usage: npm run release 2.3.0
 // It does not touch git: it prints the commit/tag/push commands to run.
@@ -49,10 +50,11 @@ function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export function planRelease({ changelog, tutorialSteps, packageJson, tauriConf, cargoToml }, version, date) {
+export function planRelease({ changelog, tutorialSteps, whatsNew, packageJson, tauriConf, cargoToml }, version, date) {
   return {
     changelog: cutChangelog(changelog, version, date),
     tutorialSteps: rewriteSinceMarkers(tutorialSteps, version),
+    whatsNew: rewriteSinceMarkers(whatsNew, version),
     packageJson: setJsonVersion(packageJson, version),
     tauriConf: setJsonVersion(tauriConf, version),
     cargoToml: setTomlVersion(cargoToml, version),
@@ -69,6 +71,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const files = {
     changelog: join(ROOT, 'CHANGELOG.md'),
     tutorialSteps: join(ROOT, 'src/lib/tutorialSteps.js'),
+    whatsNew: join(ROOT, 'src/lib/whatsNew.js'),
     packageJson: join(ROOT, 'package.json'),
     tauriConf: join(ROOT, 'src-tauri/tauri.conf.json'),
     cargoToml: join(ROOT, 'src-tauri/Cargo.toml'),
@@ -89,9 +92,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const [k, content] of Object.entries(next)) {
     writeFileSync(files[k], content)
   }
-  console.log(`Cut ${version} (${date}): CHANGELOG.md, tutorialSteps since-markers, package.json, tauri.conf.json, Cargo.toml`)
+  console.log(`Cut ${version} (${date}): CHANGELOG.md, tutorialSteps + whatsNew since-markers, package.json, tauri.conf.json, Cargo.toml`)
   console.log('\nNext:')
-  console.log(`  git add CHANGELOG.md src/lib/tutorialSteps.js package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml`)
+  console.log(`  git add CHANGELOG.md src/lib/tutorialSteps.js src/lib/whatsNew.js package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml`)
   console.log(`  git commit -m "release: ${version}"`)
   console.log(`  git tag v${version} && git push && git push --tags`)
   console.log(`\nThe v${version} tag triggers release.yml, which builds the desktop bundle`)

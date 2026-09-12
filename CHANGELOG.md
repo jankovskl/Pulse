@@ -1,10 +1,12 @@
 # Pulse Changelog
 
 ## Unreleased
-- What's new now flags unseen releases — a "New" pill shows in Settings until you've read them
-- New features get their own mini-tour: "Show what's new" inside the What's new sheet
+- Profile popups open instantly at full size — no more three-second wait, and no shrunken panel with a stray scrollbar
+- What's new now finds you: the first launch after an update opens a visual summary of what changed, with icons and headlines instead of a wall of text
+- New features you might miss carry a "Show me" button that spotlights the control right in the app
+- Past releases fold into What's new, so the whole history is one tap away
+- New features get their own mini-tour, launched from What's new
 - The Sleep tab now appears in the first-run tour
-- The desktop app shows What's new offline, from a copy bundled at build time
 - Improve screen‑transition performance on low‑end mobile browsers by shortening transition duration, adding a `will‑change` hint, and gating the tweak to Android/iOS devices
 
 ## 2.2.0 — 2026-08-15

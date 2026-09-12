@@ -26,6 +26,28 @@ export function setAcknowledged(userId, version) {
   } catch {}
 }
 
+// The fingerprint of the exact What's new content the user last dismissed.
+// While the bundled notes' fingerprint differs, there is unseen news — this
+// is what re-fires the popup when the notes themselves change between
+// releases, not only at release cuts (see newsToShow in lib/whatsNew.js).
+export function seenKey(userId) {
+  return userId ? `pulse.whatsnew.seen.${userId}` : 'pulse.whatsnew.seen'
+}
+
+export function getSeenNews(userId) {
+  try {
+    return localStorage.getItem(seenKey(userId))
+  } catch {
+    return null
+  }
+}
+
+export function setSeenNews(userId, fingerprint) {
+  try {
+    localStorage.setItem(seenKey(userId), fingerprint)
+  } catch {}
+}
+
 // The What's new tour is rendered by App (outside the screen router) because
 // its steps navigate between tabs — a tour mounted inside SettingsScreen would
 // unmount the moment it leaves Settings. Module-level store, same pattern as
@@ -45,6 +67,27 @@ export function subscribeWhatsNewTour(fn) {
 
 export function getWhatsNewTour() {
   return activeTourSteps
+}
+
+// The shared What's new screen is rendered by App (above the router) so the
+// auto-popup and the Settings row open the same instance. Module store, same
+// pattern as the What's new tour: the value is the payload from newsToShow
+// ({ version, fingerprint }) to show, or null when the screen is closed.
+let whatsNewTarget = null
+const whatsNewListeners = new Set()
+
+export function showWhatsNew(payload) {
+  whatsNewTarget = payload || null
+  for (const fn of whatsNewListeners) fn()
+}
+
+export function subscribeWhatsNew(fn) {
+  whatsNewListeners.add(fn)
+  return () => whatsNewListeners.delete(fn)
+}
+
+export function getWhatsNewTarget() {
+  return whatsNewTarget
 }
 
 // Hook to check if tutorial should be shown. Tutorial state is keyed by user id

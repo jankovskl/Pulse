@@ -48,8 +48,8 @@ The 0–100 quality measure of a sleep log: how long the sleep lasted relative t
 _Avoid_: rating, penalty (that's only the caffeine component)
 
 **Changelog**:
-The ledger of user-facing releases — one entry per release version — that the What's new screen renders live. It is the source of truth for what shipped and for version numbering.
-_Avoid_: release notes (that's the GitHub Release text, which derives from it), "What's new" (that's the screen)
+The ledger of user-facing releases — one entry per release version — and the source of truth for what shipped and for version numbering. The What's new notes and the GitHub Release text are both derived from it.
+_Avoid_: release notes (that's the GitHub Release text, which derives from it), "What's new" (that's the screen), notes (that's the What's new notes)
 
 **Release version**:
 Pulse's single public version number: the newest entry of the changelog. Every manifest (web, desktop, updater) derives from it; when copies disagree, the changelog is right.
@@ -63,12 +63,24 @@ _Avoid_: onboarding; "the tutorial" when the distinction from the What's new tou
 An incremental walkthrough showing only the steps newer than a user's acknowledged version — never a replay of the first-run tour.
 _Avoid_: tutorial update, re-onboarding
 
+**What's new**:
+The one screen that presents news: it pops up by itself on the first launch after an update, and opens on demand from Settings. Seeing means dismissing — dismissal is what acknowledges the news.
+_Avoid_: sheet (the plain-changelog overlay it replaces), popup (implementation-flavored), news modal
+
+**What's new notes**:
+A release's structured, visual summary — one news item per user-visible change — that the What's new screen leads with. Authored per change alongside the changelog bullet, bundled into the build, and version-stamped at the release cut; the changelog stays the source of truth for what shipped (see the notes ADR).
+_Avoid_: release notes (reserved for the GitHub Release text), update card
+
+**News item**:
+One user-visible change in the What's new notes: an icon, a headline, a short description — optionally an illustration and a link to its tutorial step. Internal changes never become items.
+_Avoid_: bullet (that's the changelog form), feature (too broad)
+
 **Acknowledged version**:
-The newest release version whose news a user has seen. While the changelog is newer, the app signals unacknowledged news.
+The newest release version whose news a user has seen — seen means dismissed the What's new screen. While the changelog is newer, the app signals unacknowledged news.
 _Avoid_: seen flag, read state
 
 **Unreleased**:
-The changelog section where bullets accumulate as features land on `main`, before any version is cut. It is never shown in What's new — the sheet promises what the user can use now.
+The changelog section where bullets accumulate as features land on `main`, before any version is cut. It is never shown in What's new — the screen promises what the user can use now.
 _Avoid_: WIP, staging (implementation-flavored); a `vUnreleased` entry
 
 **Release cut**:

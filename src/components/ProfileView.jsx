@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronRight, Dumbbell, Flame, Search, ShieldCheck, Trophy, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { fetchFullProfile } from '../lib/profile'
@@ -172,7 +173,12 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
   const frame = DECORATION_FRAMES[equipped.frame]
   const title = DECORATION_TITLES[equipped.title]
 
-  return (
+  // Portaled to <body>: both call sites render this inside <Screen>, whose
+  // .screen-bg gets a backdrop-filter on glass themes — a filtered ancestor
+  // captures position:fixed, shrinking the overlay to the panel's own box
+  // (the "mini popup with a stray scrollbar"). Themes live on <html>, so
+  // CSS variables keep cascading through the portal.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-overlay md:items-center"
       onClick={onClose}
@@ -326,6 +332,7 @@ export default function ProfileView({ user, isYou = false, onClose, onPickExerci
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

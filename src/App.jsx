@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { StoreProvider, useStore } from './lib/store'
 import { AuthProvider, useAuth } from './lib/auth'
-import { TimerProvider } from './lib/timer'
+import { TimerProvider, useTimer } from './lib/timer'
 import { PresenceProvider } from './lib/presenceProvider'
 import { PwaInstallProvider } from './lib/pwaProvider'
 import { DEFAULT_THEME } from './lib/themes'
 import { NavProvider, useNav } from './components/ui'
 import Tutorial from './components/Tutorial'
-import { useTutorial, subscribeWhatsNewTour, getWhatsNewTour, startWhatsNewTour } from './lib/tutorial'
+import WhatsNewScreen from './components/WhatsNewScreen'
+import { useTutorial, subscribeWhatsNewTour, getWhatsNewTour, startWhatsNewTour, subscribeWhatsNew, getWhatsNewTarget, showWhatsNew, getAcknowledged, getSeenNews } from './lib/tutorial'
+import { newsToShow, WHATS_NEW_ITEMS } from './lib/whatsNew'
 import HomeScreen from './screens/HomeScreen'
 import DayDetailScreen from './screens/DayDetailScreen'
 import LibraryScreen from './screens/LibraryScreen'
@@ -55,13 +57,32 @@ function isMobilePhone() {
 function Router() {
   const nav = useNav()
   const auth = useAuth()
+  const timer = useTimer()
   const reduce = useReducedMotion()
   const { shouldShowTutorial, completeTutorial } = useTutorial()
   const [showTutorial, setShowTutorial] = useState(false)
-  // What's new tour: launched from the Settings sheet via the module store
+  // What's new tour: launched from the What's new screen via the module store
   // (its steps navigate between tabs, so it must live above the router).
   const [tourSteps, setTourSteps] = useState(() => getWhatsNewTour())
   useEffect(() => subscribeWhatsNewTour(() => setTourSteps(getWhatsNewTour())), [])
+  // The shared What's new screen: opened by the auto-popup below or by the
+  // Settings row, one instance for both (see ADR 0009).
+  const [whatsNew, setWhatsNew] = useState(() => getWhatsNewTarget())
+  // Keep the last opened version so the Modal can play its exit animation
+  // after the target goes null.
+  const lastWhatsNew = useRef(whatsNew)
+  useEffect(
+    () =>
+      subscribeWhatsNew(() => {
+        const t = getWhatsNewTarget()
+        if (t) lastWhatsNew.current = t
+        setWhatsNew(t)
+      }),
+    [],
+  )
+  // The popup is a launch-time event: checked once per session, never
+  // re-fired after it has been seen or deferred.
+  const newsChecked = useRef(false)
 
   useEffect(() => {
     // Tutorial is account‑scoped: only show for signed‑in users who haven't
@@ -74,6 +95,39 @@ function Router() {
       setShowTutorial(true)
     }
   }, [auth.user, shouldShowTutorial])
+
+  useEffect(() => {
+    // Auto‑popup: the first launch after an update opens What's new by
+    // itself, once the UI has settled. Bundled notes are the only trigger
+    // (ADR 0009). One check per launch: when it defers — the first‑run tour
+    // owns the screen, a tour is running, a workout session is active or
+    // restored, or auth is still resolving (the ack is user‑scoped) — news
+    // waits for the next launch rather than interrupting a set or a
+    // celebration.
+    if (newsChecked.current) return
+    if (auth.status === 'loading') return
+    // shouldShowTutorial reads localStorage directly — the showTutorial
+    // state set by the effect above isn't visible in this commit yet.
+    if ((auth.user && shouldShowTutorial(auth.user.id)) || tourSteps || timer.session) {
+      newsChecked.current = true
+      return
+    }
+    newsChecked.current = true
+    // Content-fingerprint trigger (see newsToShow): the popup returns
+    // whenever the What's new notes changed since the last dismissal — a
+    // release cut, a new item, or edited copy — not only on a new version.
+    const unseen = newsToShow(
+      WHATS_NEW_ITEMS,
+      getSeenNews(auth.user?.id),
+      getAcknowledged(auth.user?.id),
+    )
+    if (!unseen) return
+    // No cleanup on this timeout on purpose: supabase-js can fire several
+    // auth events in a row (each with a fresh user object), and a cleanup
+    // would cancel the popup that was already scheduled. showWhatsNew is
+    // idempotent, so a stray double fire is harmless.
+    setTimeout(() => showWhatsNew(unseen), 600)
+  }, [auth.status, auth.user, tourSteps, timer.session, shouldShowTutorial])
 
   const handleTutorialComplete = () => {
     if (auth.user) completeTutorial(auth.user.id)
@@ -97,6 +151,11 @@ function Router() {
           onComplete={() => startWhatsNewTour(null)}
         />
       )}
+      <WhatsNewScreen
+        open={!!whatsNew}
+        payload={whatsNew ?? lastWhatsNew.current}
+        onClose={() => showWhatsNew(null)}
+      />
       {/* popLayout: the departing screen leaves flow so the two full‑page
           screens crossfade/slide over each other instead of stacking
           vertically. `custom` hands the exiting screen the *current* nav

@@ -28,9 +28,7 @@ import {
 } from 'lucide-react'
 import { useStore, suppressNextPull, resetPullSuppression, requestCloudWipe } from '../lib/store'
 import { permissionState, requestPermission } from '../lib/notifications'
-import { compareVersions } from '../lib/changelog'
-import { loadChangelog } from '../lib/changelog-bundled'
-import { TUTORIAL_STEPS, newStepsSince } from '../lib/tutorialSteps'
+import { latestNewsVersion, newsToShow, itemsForVersion, WHATS_NEW_ITEMS, UNRELEASED } from '../lib/whatsNew'
 import { getUserId } from '../lib/auth'
 import { useAuth } from '../lib/auth'
 import { usePwaInstall } from '../lib/pwaProvider'
@@ -54,7 +52,7 @@ import { useTimer } from '../lib/timer'
 import AuthModal from '../components/AuthModal'
 import AccountEditor from '../components/AccountEditor'
 import { Avatar, DecoratedAvatar, DecorationTitle, DECORATION_FRAMES, initialsOf, Modal, Screen, Toggle, useDialog } from '../components/ui'
-import { useTutorial, getAcknowledged, setAcknowledged, startWhatsNewTour } from '../lib/tutorial'
+import { useTutorial, getAcknowledged, getSeenNews, showWhatsNew } from '../lib/tutorial'
 
 const THEMES = ['#F5A524', '#17C964', '#EC4899', '#A855F7', '#FF383C', '#0485F7']
 
@@ -118,9 +116,6 @@ export default function SettingsScreen() {
   const [deletePw, setDeletePw] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
-  const [changelog, setChangelog] = useState(null)
-  const [failed, setFailed] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
   const [online, setOnline] = useState(navigator.onLine)
   const [view, setView] = useState('main')
@@ -213,40 +208,15 @@ export default function SettingsScreen() {
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    loadChangelog()
-      .then((entries) => {
-        if (!cancelled) {
-          setChangelog(entries)
-          setFailed(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // What's new news state: unseen = the live changelog is newer than what
-  // this user acknowledged. Users with no ack yet inherit the current top
-  // version — the mechanism starts counting from the next release, so nobody
-  // is nagged with a tour of steps they've already had.
-  const latestVersion = changelog?.length ? changelog[0].version : null
-  const effectiveAck = getAcknowledged(auth.user?.id) ?? latestVersion
-  const unseenNews = !!latestVersion && compareVersions(latestVersion, effectiveAck) > 0
-  // Snapshot of the tour steps taken *before* opening acks the news —
-  // otherwise the "Show what's new" button would vanish the instant it
-  // could first be seen.
-  const [tourSteps, setTourSteps] = useState([])
-
-  function openWhatsNew() {
-    setTourSteps(newStepsSince(TUTORIAL_STEPS, effectiveAck))
-    if (latestVersion) setAcknowledged(auth.user?.id, latestVersion)
-    setSheetOpen(true)
-  }
+  // What's new news state: unseen = the bundled notes' fingerprint differs
+  // from what this device last dismissed (see ADR 0009 — the notes, never
+  // the live changelog, are the trigger). Same call the auto-popup uses in
+  // App; fresh installs return null, so the pill starts silent and counts
+  // from the next change.
+  const unseen = newsToShow(WHATS_NEW_ITEMS, getSeenNews(auth.user?.id), getAcknowledged(auth.user?.id))
+  const latestVersion = latestNewsVersion()
+  const headlineItem = itemsForVersion(WHATS_NEW_ITEMS, UNRELEASED)[0]
+    ?? (latestVersion ? itemsForVersion(WHATS_NEW_ITEMS, latestVersion)[0] : null)
 
   function exportData() {
     const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], {
@@ -835,18 +805,22 @@ export default function SettingsScreen() {
             icon={<Rocket size={15} color="var(--color-accent)" />}
             title="What's new"
             subtitle={
-              changelog?.length
-                ? `v${changelog[0].version} · ${changelog[0].items[0] ?? 'recent changes'}`
-                : 'Loading…'
+              headlineItem
+                ? headlineItem.title
+                : latestVersion
+                  ? `v${latestVersion} · recent changes`
+                  : 'No releases yet'
             }
             right={
-              unseenNews ? (
+              unseen ? (
                 <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">
                   New
                 </span>
               ) : undefined
             }
-            onClick={openWhatsNew}
+            onClick={() =>
+              showWhatsNew(unseen ?? { version: latestVersion, fingerprint: null })
+            }
           />
         </div>
 
@@ -855,87 +829,6 @@ export default function SettingsScreen() {
           <span className="text-[10px] text-faint/60">Local prototype · data stays in your browser</span>
         </div>
       </div>
-      )}
-
-      {sheetOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-overlay"
-          onClick={() => setSheetOpen(false)}
-        >
-          <div
-            className="glass-panel flex max-h-[70dvh] w-full max-w-[420px] flex-col gap-4 rounded-t-[28px] bg-card p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[16px] font-semibold text-soft">What's new</span>
-                <span className="text-[12px] text-muted">Changes from the latest pushes to GitHub</span>
-              </div>
-              <button
-                onClick={() => setSheetOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-tile"
-              >
-                <X size={15} color="var(--color-sub)" />
-              </button>
-            </div>
-            {tourSteps.length > 0 && (
-              <button
-                onClick={() => {
-                  setSheetOpen(false)
-                  startWhatsNewTour(tourSteps)
-                }}
-                className="flex h-10 items-center justify-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-white"
-              >
-                <Sparkles size={15} />
-                Show what's new
-              </button>
-            )}
-            <div className="flex flex-col gap-4 overflow-y-auto">
-              {failed ? (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <span className="text-[13px] text-sub">Couldn't load updates</span>
-                  <button
-                    onClick={() => {
-                      setFailed(false)
-                      loadChangelog()
-                        .then(setChangelog)
-                        .catch(() => setFailed(true))
-                    }}
-                    className="h-8 rounded-[24px] bg-accent px-4 text-[13px] text-white"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : !changelog ? (
-                <div className="flex items-center justify-center gap-2 py-8">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-tile border-t-accent" />
-                  <span className="text-[13px] text-sub">Loading updates…</span>
-                </div>
-              ) : changelog.length === 0 ? (
-                <span className="py-8 text-center text-[13px] text-sub">No changes recorded yet.</span>
-              ) : (
-                changelog.map((entry) => (
-                  <div key={entry.version} className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-semibold tracking-[1.4px] text-accent-light">
-                        v{entry.version}
-                      </span>
-                      {entry.date && <span className="text-[11px] text-faint">{entry.date}</span>}
-                    </div>
-                    <ul className="flex flex-col gap-1.5">
-                      {entry.items.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-soft">
-                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {installOpen && (

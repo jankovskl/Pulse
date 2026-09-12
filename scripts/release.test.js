@@ -62,6 +62,7 @@ test('planRelease moves every artifact to the same version', () => {
     {
       changelog: MD,
       tutorialSteps: `  since: UNRELEASED,\n`,
+      whatsNew: `  since: UNRELEASED,\n`,
       packageJson: `{"version": "2.2.0"}`,
       tauriConf: `{"version": "2.2.0"}`,
       cargoToml: `version = "2.2.0"`,
@@ -71,6 +72,7 @@ test('planRelease moves every artifact to the same version', () => {
   )
   assert.ok(out.changelog.includes('## 2.3.0 — 2026-09-11'))
   assert.ok(out.tutorialSteps.includes(`since: '2.3.0'`))
+  assert.ok(out.whatsNew.includes(`since: '2.3.0'`))
   assert.ok(out.packageJson.includes('"version": "2.3.0"'))
   assert.ok(out.tauriConf.includes('"version": "2.3.0"'))
   assert.ok(out.cargoToml.includes('version = "2.3.0"'))

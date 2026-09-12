@@ -59,17 +59,25 @@ export async function fetchUserLifts(supabase, userId) {
 
 // Exact 1-based rank per exercise for a user's lifts: number of lifts heavier
 // than theirs in that exercise + 1 (correct even beyond the visible top 50).
+// The per-exercise counts run concurrently — awaiting them one by one made a
+// profile with many lifts wait a full round-trip per exercise before showing.
 export async function fetchLiftRanks(supabase, userLifts) {
+  const lifts = userLifts ?? []
+  const counts = await Promise.all(
+    lifts.map((lift) =>
+      supabase
+        .from('lifts')
+        .select('*', { count: 'exact', head: true })
+        .eq('exercise', lift.exercise)
+        .gt('weight', lift.weight)
+        .then(({ count, error }) => {
+          if (error) throw error
+          return (count ?? 0) + 1
+        }),
+    ),
+  )
   const ranks = {}
-  for (const lift of userLifts ?? []) {
-    const { count, error } = await supabase
-      .from('lifts')
-      .select('*', { count: 'exact', head: true })
-      .eq('exercise', lift.exercise)
-      .gt('weight', lift.weight)
-    if (error) throw error
-    ranks[lift.exercise] = (count ?? 0) + 1
-  }
+  lifts.forEach((lift, i) => (ranks[lift.exercise] = counts[i]))
   return ranks
 }
 
