@@ -7,6 +7,7 @@ import { clampWeight, isNewPersonalRecord } from './integrity'
 import { dateKey } from './data'
 import { navigate } from '../components/ui'
 import { scheduleDailyReminder, fireSleepReminder } from './notifications'
+import { DEFAULT_THEME } from './themes'
 
 const KEY = 'pulse.state.v2'
 
@@ -69,7 +70,7 @@ const DEFAULT = {
   days: [],
   sessions: [],
   plan: {},
-  settings: { notify: true, neko: true, accent: '#A855F7', theme: 'dark', pwaDismissed: false, sleepReminder: { enabled: false, time: '09:00' }, sleepGoal: 8, idealSleepOnset: '23:00' },
+  settings: { notify: true, neko: true, accent: '#A855F7', theme: DEFAULT_THEME, pwaDismissed: false, sleepReminder: { enabled: false, time: '09:00' }, sleepGoal: 8, idealSleepOnset: '23:00' },
   lastActiveExercise: null,
   totals: { sessions: 0, lastSessionDay: null },
   sleep: [],

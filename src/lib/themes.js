@@ -1,4 +1,4 @@
-export const DEFAULT_THEME = 'dark'
+export const DEFAULT_THEME = 'g-lawrencium'
 
 const GRADIENT_TOKENS = {
   surface: 'rgba(0,0,0,0.32)',
@@ -149,68 +149,23 @@ export const THEMES = [
       ring: '#F1D9E2',
     },
   },
+  // Gradient themes, grouped by hue family — the order here IS the order of
+  // the swatch grid in Settings → Appearance. Families follow the accent-color
+  // row: amber, green, rose, pink, purple, red, blue.
+  // ── amber & gold ────────────────────────────────────────────────────────
   {
-    id: 'g-sweet-morning',
-    name: 'Sweet Morning',
+    id: 'g-dark-knight',
+    name: 'Dark Knight',
     glass: true,
-    colors: gradientThemeColors('#FF5F6D', '#FFC371'),
+    colors: gradientThemeColors('#BA8B02', '#181818'),
   },
   {
-    id: 'g-pure-lust',
-    name: 'Pure Lust',
+    id: 'g-army',
+    name: 'Army',
     glass: true,
-    colors: gradientThemeColors('#333333', '#DD1818'),
+    colors: gradientThemeColors('#414D0B', '#727A17'),
   },
-  {
-    id: 'g-royal-blue',
-    name: 'Royal Blue',
-    glass: true,
-    colors: gradientThemeColors('#536976', '#292E49'),
-  },
-  {
-    id: 'g-purple-love',
-    name: 'Purple Love',
-    glass: true,
-    colors: gradientThemeColors('#CC2B5E', '#753A88'),
-  },
-  {
-    id: 'g-sublime-vivid',
-    name: 'Sublime Vivid',
-    glass: true,
-    colors: gradientThemeColors('#FC466B', '#3F5EFB'),
-  },
-  {
-    id: 'g-vice-city',
-    name: 'Vice City',
-    glass: true,
-    colors: gradientThemeColors('#3494E6', '#EC6EAD'),
-  },
-  {
-    id: 'g-love-couple',
-    name: 'Love Couple',
-    glass: true,
-    colors: gradientThemeColors('#3A6186', '#89253E'),
-  },
-  {
-    id: 'g-king-yna',
-    name: 'King Yna',
-    glass: true,
-    colors: gradientThemeColors('#1A2A6C', '#FDBB2D', '#B21F1F'),
-  },
-  {
-    id: 'g-pacific-dream',
-    name: 'Pacific Dream',
-    glass: true,
-    colors: gradientThemeColors('#34E89E', '#0F3443'),
-  },
-  {
-    id: 'g-dawn',
-    name: 'Dawn',
-    glass: true,
-    colors: gradientThemeColors('#F3904F', '#3B4371'),
-  },
-  // Muted / low-luminance gradients from gradient.page/ui-gradients. Chosen to
-  // stay readable under the light gradient ink tokens — no bright stops.
+  // ── green ───────────────────────────────────────────────────────────────
   {
     id: 'g-moss',
     name: 'Moss',
@@ -230,34 +185,36 @@ export const THEMES = [
     colors: gradientThemeColors('#5A3F37', '#2C7744'),
   },
   {
-    id: 'g-mirage',
-    name: 'Mirage',
+    id: 'g-terminal',
+    name: 'Terminal',
     glass: true,
-    colors: gradientThemeColors('#16222A', '#3A6073'),
+    colors: gradientThemeColors('#000000', '#0F9B0F'),
   },
   {
-    id: 'g-midnight-city',
-    name: 'Midnight City',
+    id: 'g-vine',
+    name: 'Vine',
     glass: true,
-    colors: gradientThemeColors('#232526', '#414345'),
+    colors: gradientThemeColors('#001510', '#00BF8F'),
+  },
+  // ── rose & wine ─────────────────────────────────────────────────────────
+  {
+    id: 'g-sweet-morning',
+    name: 'Sweet Morning',
+    glass: true,
+    colors: gradientThemeColors('#FF5F6D', '#FFC371'),
   },
   {
-    id: 'g-royal',
-    name: 'Royal',
+    id: 'g-love-couple',
+    name: 'Love Couple',
     glass: true,
-    colors: gradientThemeColors('#141E30', '#243B55'),
+    colors: gradientThemeColors('#3A6186', '#89253E'),
   },
+  // ── pink & magenta ──────────────────────────────────────────────────────
   {
-    id: 'g-vicious-stance',
-    name: 'Vicious Stance',
+    id: 'g-purple-love',
+    name: 'Purple Love',
     glass: true,
-    colors: gradientThemeColors('#29323C', '#485563'),
-  },
-  {
-    id: 'g-selenium',
-    name: 'Selenium',
-    glass: true,
-    colors: gradientThemeColors('#3C3B3F', '#605C3C'),
+    colors: gradientThemeColors('#CC2B5E', '#753A88'),
   },
   {
     id: 'g-aubergine',
@@ -266,21 +223,114 @@ export const THEMES = [
     colors: gradientThemeColors('#AA076B', '#61045F'),
   },
   {
-    id: 'g-moonlit-asteroid',
-    name: 'Moonlit Asteroid',
+    id: 'g-flickr',
+    name: 'Flickr',
     glass: true,
-    colors: gradientThemeColors('#0F2027', '#2C5364', '#203A43'),
+    colors: gradientThemeColors('#33001B', '#FF0084'),
   },
+  {
+    id: 'g-vice-city',
+    name: 'Vice City',
+    glass: true,
+    colors: gradientThemeColors('#3494E6', '#EC6EAD'),
+  },
+  // ── purple & violet ─────────────────────────────────────────────────────
   {
     id: 'g-lawrencium',
     name: 'Lawrencium',
     glass: true,
     colors: gradientThemeColors('#0F0C29', '#24243E', '#302B63'),
   },
+  {
+    id: 'g-twitch',
+    name: 'Twitch',
+    glass: true,
+    colors: gradientThemeColors('#6441A5', '#2A0845'),
+  },
+  {
+    id: 'g-deep-purple',
+    name: 'Deep Purple',
+    glass: true,
+    colors: gradientThemeColors('#673AB7', '#512DA8'),
+  },
+  {
+    id: 'g-mauve',
+    name: 'Mauve',
+    glass: true,
+    colors: gradientThemeColors('#42275A', '#734B6D'),
+  },
+  // ── red ─────────────────────────────────────────────────────────────────
+  {
+    id: 'g-pure-lust',
+    name: 'Pure Lust',
+    glass: true,
+    colors: gradientThemeColors('#333333', '#DD1818'),
+  },
+  {
+    id: 'g-the-strain',
+    name: 'The Strain',
+    glass: true,
+    colors: gradientThemeColors('#870000', '#190A05'),
+  },
+  {
+    id: 'g-namn',
+    name: 'Namn',
+    glass: true,
+    colors: gradientThemeColors('#A73737', '#7A2828'),
+  },
+  {
+    id: 'g-dawn',
+    name: 'Dawn',
+    glass: true,
+    colors: gradientThemeColors('#F3904F', '#3B4371'),
+  },
+  {
+    id: 'g-king-yna',
+    name: 'King Yna',
+    glass: true,
+    colors: gradientThemeColors('#1A2A6C', '#FDBB2D', '#B21F1F'),
+  },
+  // ── blue & slate ────────────────────────────────────────────────────────
+  {
+    id: 'g-royal',
+    name: 'Royal',
+    glass: true,
+    colors: gradientThemeColors('#141E30', '#243B55'),
+  },
+  {
+    id: 'g-moonlit-asteroid',
+    name: 'Moonlit Asteroid',
+    glass: true,
+    colors: gradientThemeColors('#0F2027', '#2C5364', '#203A43'),
+  },
+  {
+    id: 'g-frost',
+    name: 'Frost',
+    glass: true,
+    colors: gradientThemeColors('#000428', '#004E92'),
+  },
+  {
+    id: 'g-very-blue',
+    name: 'Very Blue',
+    glass: true,
+    colors: gradientThemeColors('#0575E6', '#021B79'),
+  },
+  {
+    id: 'g-clear-sky',
+    name: 'Clear Sky',
+    glass: true,
+    colors: gradientThemeColors('#005C97', '#363795'),
+  },
+  {
+    id: 'g-sublime-vivid',
+    name: 'Sublime Vivid',
+    glass: true,
+    colors: gradientThemeColors('#FC466B', '#3F5EFB'),
+  },
 ]
 
 export function themeById(id) {
-  return THEMES.find((t) => t.id === id) ?? THEMES[0]
+  return THEMES.find((t) => t.id === id) ?? THEMES.find((t) => t.id === DEFAULT_THEME) ?? THEMES[0]
 }
 
 function gradientThemeColors(bg, bg2, mid) {

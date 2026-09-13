@@ -161,25 +161,32 @@
 
 [data-theme='g-sweet-morning'] { --color-bg: #ff5f6d; --color-bg2: #ffc371; }
 [data-theme='g-pure-lust'] { --color-bg: #333333; --color-bg2: #dd1818; }
-[data-theme='g-royal-blue'] { --color-bg: #536976; --color-bg2: #292e49; }
 [data-theme='g-purple-love'] { --color-bg: #cc2b5e; --color-bg2: #753a88; }
 [data-theme='g-sublime-vivid'] { --color-bg: #fc466b; --color-bg2: #3f5efb; }
 [data-theme='g-vice-city'] { --color-bg: #3494e6; --color-bg2: #ec6ead; }
 [data-theme='g-love-couple'] { --color-bg: #3a6186; --color-bg2: #89253e; }
 [data-theme='g-king-yna'] { --color-bg: #1a2a6c; --color-bg-mid: #b21f1f; --color-bg2: #fdbb2d; }
-[data-theme='g-pacific-dream'] { --color-bg: #34e89e; --color-bg2: #0f3443; }
 [data-theme='g-dawn'] { --color-bg: #f3904f; --color-bg2: #3b4371; }
 [data-theme='g-moss'] { --color-bg: #134e5e; --color-bg2: #71b280; }
 [data-theme='g-under-the-lake'] { --color-bg: #093028; --color-bg2: #237a57; }
 [data-theme='g-forest'] { --color-bg: #5a3f37; --color-bg2: #2c7744; }
-[data-theme='g-mirage'] { --color-bg: #16222a; --color-bg2: #3a6073; }
-[data-theme='g-midnight-city'] { --color-bg: #232526; --color-bg2: #414345; }
 [data-theme='g-royal'] { --color-bg: #141e30; --color-bg2: #243b55; }
-[data-theme='g-vicious-stance'] { --color-bg: #29323c; --color-bg2: #485563; }
-[data-theme='g-selenium'] { --color-bg: #3c3b3f; --color-bg2: #605c3c; }
 [data-theme='g-aubergine'] { --color-bg: #aa076b; --color-bg2: #61045f; }
 [data-theme='g-moonlit-asteroid'] { --color-bg: #0f2027; --color-bg-mid: #203a43; --color-bg2: #2c5364; }
 [data-theme='g-lawrencium'] { --color-bg: #0f0c29; --color-bg-mid: #302b63; --color-bg2: #24243e; }
+[data-theme='g-twitch'] { --color-bg: #6441a5; --color-bg2: #2a0845; }
+[data-theme='g-deep-purple'] { --color-bg: #673ab7; --color-bg2: #512da8; }
+[data-theme='g-mauve'] { --color-bg: #42275a; --color-bg2: #734b6d; }
+[data-theme='g-frost'] { --color-bg: #000428; --color-bg2: #004e92; }
+[data-theme='g-very-blue'] { --color-bg: #0575e6; --color-bg2: #021b79; }
+[data-theme='g-clear-sky'] { --color-bg: #005c97; --color-bg2: #363795; }
+[data-theme='g-terminal'] { --color-bg: #000000; --color-bg2: #0f9b0f; }
+[data-theme='g-vine'] { --color-bg: #001510; --color-bg2: #00bf8f; }
+[data-theme='g-the-strain'] { --color-bg: #870000; --color-bg2: #190a05; }
+[data-theme='g-namn'] { --color-bg: #a73737; --color-bg2: #7a2828; }
+[data-theme='g-flickr'] { --color-bg: #33001b; --color-bg2: #ff0084; }
+[data-theme='g-dark-knight'] { --color-bg: #ba8b02; --color-bg2: #181818; }
+[data-theme='g-army'] { --color-bg: #414d0b; --color-bg2: #727a17; }
 
 :is([data-theme='glass'], [data-theme^='g-']) .screen-bg,
 :is([data-theme='glass'], [data-theme^='g-']) .bg-surface,
@@ -241,6 +248,15 @@ body {
   background-color: var(--color-bg);
   font-family: var(--font-sans);
   transition: background-color 200ms ease;
+}
+
+/* Tab-switch jump fix: screens that fit the viewport don't show a scrollbar,
+   so swapping a scrollable screen for a short one used to re-center the whole
+   layout by ~15px mid-transition — the desktop "jump". The gutter keeps the
+   column anchored either way. (The mobile half of the fix is the pre-paint
+   scroll reset in App.jsx.) */
+html {
+  scrollbar-gutter: stable;
 }
 
 .screen-bg {

@@ -36,8 +36,12 @@ test('light themes use dark line tokens, dark themes use light line tokens', () 
   assert.equal(themeById('dark').colors.line, '#FFFFFF')
 })
 
-test('unknown id falls back to dark', () => {
+test('unknown id falls back to the default theme', () => {
   assert.equal(themeById('nope').id, DEFAULT_THEME)
+})
+
+test('the default theme is the Lawrencium gradient', () => {
+  assert.equal(DEFAULT_THEME, 'g-lawrencium')
 })
 
 test('gradient themes are glass with light ink', () => {
@@ -52,7 +56,7 @@ test('gradient themes are glass with light ink', () => {
 
 test('three-stop themes declare a mid token between bg and bg2', () => {
   const withMid = THEMES.filter((t) => t.colors.mid)
-  assert.deepEqual(withMid.map((t) => t.id), ['g-king-yna', 'g-moonlit-asteroid', 'g-lawrencium'])
+  assert.deepEqual([...withMid.map((t) => t.id)].sort(), ['g-king-yna', 'g-lawrencium', 'g-moonlit-asteroid'])
   for (const t of withMid) assert.ok(t.colors.mid.startsWith('#'))
 })
 
@@ -62,8 +66,13 @@ test('the muted gradient set stays dark enough for light ink to read', () => {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
   const muted = THEMES.filter((x) =>
-    ['g-moss', 'g-under-the-lake', 'g-forest', 'g-mirage', 'g-midnight-city', 'g-royal', 'g-vicious-stance', 'g-selenium', 'g-aubergine', 'g-moonlit-asteroid', 'g-lawrencium'].includes(x.id))
-  assert.equal(muted.length, 11)
+    [
+      'g-moss', 'g-under-the-lake', 'g-forest', 'g-royal', 'g-aubergine',
+      'g-moonlit-asteroid', 'g-lawrencium', 'g-twitch', 'g-deep-purple', 'g-mauve',
+      'g-frost', 'g-very-blue', 'g-clear-sky', 'g-terminal', 'g-vine', 'g-the-strain',
+      'g-namn', 'g-flickr', 'g-dark-knight', 'g-army',
+    ].includes(x.id))
+  assert.equal(muted.length, 20)
   for (const t of muted) {
     const stops = [t.colors.bg, t.colors.mid, t.colors.bg2].filter(Boolean)
     const maxLum = Math.max(...stops.map(lum))

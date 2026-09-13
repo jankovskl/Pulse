@@ -1,6 +1,9 @@
 # Pulse Changelog
 
 ## Unreleased
+- The little jump when switching tabs is gone — the tab bar no longer hops while a screen slides in, and every tab opens from the top
+- 20 new muted gradient themes in Appearance — including Moss and Lawrencium-style picks matched to every accent color, now sorted by hue family
+- Lawrencium is the new default theme for fresh installs — existing picks are never overwritten
 - Profile popups open instantly at full size — no more three-second wait, and no shrunken panel with a stray scrollbar
 - What's new now finds you: the first launch after an update opens a visual summary of what changed, with icons and headlines instead of a wall of text
 - New features you might miss carry a "Show me" button that spotlights the control right in the app

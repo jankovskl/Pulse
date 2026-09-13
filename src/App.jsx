@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { StoreProvider, useStore } from './lib/store'
 import { AuthProvider, useAuth } from './lib/auth'
@@ -141,6 +141,17 @@ function Router() {
   const mobile = isMobilePhone()
   const transitionDuration = mobile ? 0.12 : navDir ? 0.2 : 0.16
 
+  // Tab‑switch jump fix: the window scrolls and screens differ wildly in
+  // height, so navigating deep into a long screen could leave the new (often
+  // shorter) screen starting mid‑scroll — the browser then clamps back, and
+  // that snap paints as a jump. Layout effect = before paint, so the
+  // transition always starts from the top of the newcomer. (Back with
+  // browser history still restores its own scroll; this only governs in‑app
+  // navigation.)
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [nav.name])
+
   return (
     <>
       {showTutorial && <Tutorial onComplete={handleTutorialComplete} />}
@@ -156,27 +167,31 @@ function Router() {
         payload={whatsNew ?? lastWhatsNew.current}
         onClose={() => showWhatsNew(null)}
       />
-      {/* popLayout: the departing screen leaves flow so the two full‑page
-          screens crossfade/slide over each other instead of stacking
-          vertically. `custom` hands the exiting screen the *current* nav
-          direction, so it slides out opposite to the newcomer. */}
-      <AnimatePresence initial={false} mode="popLayout" custom={navDir}>
-        <motion.div
-          key={nav.name}
-          initial={{ opacity: 0, x: enterX }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={(dir) => ({ opacity: 0, x: reduce || !dir ? 0 : -dir * 28 })}
-          // Apply hardware‑acceleration hint via will‑change
-          style={{ willChange: 'opacity, transform' }}
-          transition={
-            reduce
-              ? { duration: 0 }
-              : { duration: transitionDuration, ease: [0.23, 1, 0.32, 1] }
-          }
-        >
-          <ScreenBody name={nav.name} />
-        </motion.div>
-      </AnimatePresence>
+      {/* Clip the ±28px slide sideways: mid-transition the incoming screen
+          overhangs the viewport, which makes the browser spawn a horizontal
+          scrollbar for the animation's lifetime (~200ms). That scrollbar eats
+          ~15px of viewport height, so the tab bar visibly hops — desktop and
+          installed PWA alike. overflow-x-clip (not hidden) so sticky elements
+          inside the screens keep working. */}
+      <div className="overflow-x-clip">
+        <AnimatePresence initial={false} mode="popLayout" custom={navDir}>
+          <motion.div
+            key={nav.name}
+            initial={{ opacity: 0, x: enterX }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={(dir) => ({ opacity: 0, x: reduce || !dir ? 0 : -dir * 28 })}
+            // Apply hardware‑acceleration hint via will‑change
+            style={{ willChange: 'opacity, transform' }}
+            transition={
+              reduce
+                ? { duration: 0 }
+                : { duration: transitionDuration, ease: [0.23, 1, 0.32, 1] }
+            }
+          >
+            <ScreenBody name={nav.name} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </>
   )
 }

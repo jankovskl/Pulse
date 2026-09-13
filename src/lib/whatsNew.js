@@ -23,6 +23,24 @@ export const WHATS_NEW_ITEMS = [
   // ── staged for the next cut ─────────────────────────────────────────────
   {
     since: UNRELEASED,
+    icon: '🪶',
+    title: 'Tab switches, no more jump',
+    body: 'For a split second while a screen slid in, a stray scrollbar could nudge the tab bar — that hop is gone.',
+  },
+  {
+    since: UNRELEASED,
+    icon: '🟣',
+    title: 'Lawrencium leads the pack',
+    body: 'New installs open in the Lawrencium gradient — a deep violet that pairs with the default accent. Your own theme pick stays exactly as you left it.',
+  },
+  {
+    since: UNRELEASED,
+    icon: '🌫️',
+    title: 'Twenty new gradients',
+    body: 'Appearance now ships dark, muted gradients for every accent — Moss, Lawrencium and friends, no eye-searing neons.',
+  },
+  {
+    since: UNRELEASED,
     icon: '👤',
     title: 'Profiles, at a glance',
     body: 'Tap a name on any leaderboard and the profile opens right away, at full size.',
