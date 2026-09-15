@@ -1,6 +1,7 @@
 # Pulse Changelog
 
 ## Unreleased
+- Sleep scores hit twice as hard: sleeping less than your goal, or going to bed past your ideal onset, now drops the score noticeably more — a perfect night still scores 100
 - The little jump when switching tabs is gone — the tab bar no longer hops while a screen slides in, and every tab opens from the top
 - 20 new muted gradient themes in Appearance — including Moss and Lawrencium-style picks matched to every accent color, now sorted by hue family
 - Lawrencium is the new default theme for fresh installs — existing picks are never overwritten

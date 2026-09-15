@@ -1,6 +1,12 @@
 # What's new notes are authored per change and shipped bundled
 
+Status: accepted, narrowed to new features by the amendment below
+
 The changelog (ADR 0007) is plain markdown bullets — right for a ledger, wrong for the visual What's new popup we now show on the first launch after an update. The popup needs structured items (icon, headline, blurb, optional tutorial link), which the changelog doesn't carry. We decided: those **What's new notes** are a separate structured list in `src/lib/whatsNew.js`, authored **per change** — the same commit that adds a changelog bullet and a tutorial step adds a notes item with `since: UNRELEASED` — and the release cut stamps versions across all three, exactly as it already does for tutorial steps. The notes are **bundled into the build**, never fetched: the popup and the "New" pill trigger purely from the app's own bundled notes, so a long-open web tab on an old build never shows a half-populated popup.
+
+## Amendment: items are authored per new feature, not per change
+
+Real-world feedback: a popup that announces every bullet — a sleep-score tuning, a tab-bar jump fix — trains the user to dismiss it without reading. We narrowed the authoring rule: **only new features get a What's new item**. A bugfix, tuning, or refinement still gets its changelog bullet (the ledger keeps its complete history, and the popup's "Past releases" section still shows it), but no item — and since items are the popup's only trigger, a release's patches can neither pop it nor light the pill. This changes the trigger's meaning slightly: the fingerprint still announces any change to the notes, but the notes now track features, so "unseen news" means "unseen features". A release shipping only patches has no items, which the existing INTERNAL_ONLY escape hatch already covers — it now becomes the normal mark for fix-only releases rather than the exception.
 
 ## Considered Options
 

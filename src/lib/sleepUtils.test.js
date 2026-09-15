@@ -22,19 +22,23 @@ test('sleepScore: meeting the goal at the ideal bedtime scores 100', () => {
   assert.equal(sleepScore(8, 8, '22:00', '22:00'), 100)
 })
 
-test('sleepScore: hours are still the duration axis (early beddie stays full)', () => {
-  // 7h from 21:00 (earlier than ideal) → duration caps nothing, alignment is 1.
-  assert.equal(sleepScore(7, 8, '21:00', '22:00'), 88) // 7/8 = 87.5 → 88
+test('sleepScore: hours are still the duration axis (early beddie stays aligned)', () => {
+  // 7h from 21:00 (earlier than ideal) → alignment is 1; the duration axis
+  // carries the doubled penalty, so 7/8 of the goal is 77, not the old 88.
+  assert.equal(sleepScore(7, 8, '21:00', '22:00'), 77) // (7/8)² = 76.5625 → 77
 })
 
-test('sleepScore: duration score is capped at 100 even with more hours', () => {
+test('sleepScore: overshooting the goal is still capped at a perfect duration', () => {
+  // 11h on an 8h goal: the ratio is capped at 1 before squaring, so the
+  // duration axis tops out at exactly 100 — the ceiling never shifts.
   assert.equal(sleepScore(11, 8, '22:00', '22:00'), 100)
 })
 
-test('sleepScore: the same 8h from 1am sits in the 80–90 band', () => {
+test('sleepScore: the same 8h from 1am (3h late) takes the doubled hit on both axes', () => {
+  // Old curve: duration 100 (capped), alignment 0.866 → 87. Squared penalty
+  // on each axis: alignment cos(3h)² = 0.75 → 75.
   const score = sleepScore(8, 8, '01:00', '22:00')
-  assert.ok(score >= 80 && score <= 90, `expected 80–90, got ${score}`)
-  assert.equal(score, 87)
+  assert.equal(score, 75)
 })
 
 test('sleepScore: later bedtimes decay gradually, never below the duration floor', () => {
@@ -47,7 +51,13 @@ test('sleepScore: later bedtimes decay gradually, never below the duration floor
 
 test('sleepScore: legacy log without bedtime is pure duration', () => {
   assert.equal(sleepScore(8, 8, null, '22:00'), 100)
-  assert.equal(sleepScore(7, 8, undefined, '22:00'), 88)
+  assert.equal(sleepScore(7, 8, undefined, '22:00'), 77)
+})
+
+test('sleepScore: the duration penalty steepens below the goal', () => {
+  // Half the goal on time: (4/8)² → 25, where the linear axis gave 50.
+  assert.equal(sleepScore(4, 8, '21:00', '22:00'), 25)
+  assert.equal(sleepScore(6, 8, '21:00', '22:00'), 56) // 0.75² = 56.25 → 56
 })
 
 test('sleepScore: invalid inputs score 0 (preserves old guard)', () => {
@@ -71,10 +81,32 @@ test('sleepAlignment: neutral (1.0) when there is no bedtime', () => {
   assert.equal(sleepAlignment(''), 1)
 })
 
-test('sleepAlignment: 3h late ≈ 0.87, code comment anchor', () => {
-  assert.equal(sleepAlignment('01:00', '22:00'), Math.round(Math.sqrt(3) / 2 * 1000) / 1000)
-  assert.ok(Math.abs(sleepAlignment('01:00', '22:00') - 0.866) < 0.001)
+test('sleepAlignment: 3h late = cos²(3h) = 0.75, the doubled penalty', () => {
+  // cos(π·3/18) = √3/2 ≈ 0.866; the curve is squared, so 0.75.
+  assert.equal(sleepAlignment('01:00', '22:00'), 0.75)
+  // 1h late: cos(10°)² ≈ 0.970 (was 0.985).
+  assert.equal(sleepAlignment('23:00', '22:00'), 0.97)
+  // 6h late: cos(60°) = 0.5 → 0.25 (was 0.5).
+  assert.equal(sleepAlignment('04:00', '22:00'), 0.25)
 })
+
+test('sleepAlignment: monotone decay, and the square only ever hurts more', () => {
+  const late = (h) => sleepAlignment(h, '22:00')
+  assert.ok(late('23:00') > late('00:00'))
+  assert.ok(late('00:00') > late('01:00'))
+  assert.ok(late('01:00') > late('04:00'))
+  assert.ok(late('04:00') > late('06:00'))
+  // Every offset in (0, 9h) is strictly worse than before the amendment.
+  for (const b of ['23:00', '23:30', '00:00', '01:00', '02:00', '04:00', '06:00']) {
+    const cos = Math.cos(((sleepOffsetMinutes(b) % 1440) / 1080) * Math.PI)
+    assert.ok(late(b) <= Math.max(0, cos) + 1e-9, `${b}: squared must not exceed the raw cosine`)
+  }
+})
+
+function sleepOffsetMinutes(bedtime) {
+  const [bh, bm] = bedtime.split(':').map(Number)
+  return ((bh * 60 + bm) - 22 * 60 + 1440) % 1440
+}
 
 test('sleepAlignment: 9h+ late hits the zero floor', () => {
   assert.equal(sleepAlignment('07:00', '22:00'), 0) // 9h late
@@ -87,7 +119,7 @@ test('sleepAlignment: 9h+ late hits the zero floor', () => {
 
 test('sleepScoreForLog: score a stored log, 0 when absent/invalid', () => {
   assert.equal(sleepScoreForLog({ hours: 8, bedtime: '22:00' }, 8, '22:00'), 100)
-  assert.equal(sleepScoreForLog({ hours: 8, bedtime: '01:00' }, 8, '22:00'), 87)
+  assert.equal(sleepScoreForLog({ hours: 8, bedtime: '01:00' }, 8, '22:00'), 75)
   assert.equal(sleepScoreForLog(null, 8, '22:00'), 0)
   assert.equal(sleepScoreForLog({}, 8, '22:00'), 0)
 })

@@ -21,9 +21,10 @@ function toMinutes(t) {
 
 // Timing alignment of a bedtime against the ideal onset, as a 0..1 multiplier.
 // Bedtimes at or before the ideal onset are fully aligned (1.0); later bedtimes
-// decay on a cosine curve — 1h late ≈ 0.98, 3h late ≈ 0.87, 6h late ≈ 0.50,
-// 9h+ late ≈ 0 — the "gradually decreasing" rule of thumb, so 8h from 11 PM
-// scores 100 while the same 8h from 1 AM scores ≈ 87.
+// decay on a cosine curve, squared — the penalty was doubled in 2026-09 the way
+// caffeine's was in the ADR 0005 amendment (loss L becomes 1−(1−L)²), so
+// 1h late ≈ 0.97, 2h late ≈ 0.88, 3h late ≈ 0.75, 6h late ≈ 0.25, 9h+ ≈ 0 —
+// 8h from 11 PM scores 100 while the same 8h from 1 AM (2h past onset) ≈ 88.
 export function sleepAlignment(bedtime, ideal = '23:00') {
   if (!bedtime) return 1 // legacy { date, hours } log: no timing info → neutral
   const b = toMinutes(bedtime)
@@ -37,18 +38,24 @@ export function sleepAlignment(bedtime, ideal = '23:00') {
   if (offset <= 0) return 1 // at or earlier than ideal → fully aligned
   const SPAN = 18 * 60 // minutes; cos(π·offset/SPAN) reaches 0 nine hours late
   // Clamp at 0: offsets past 9h would otherwise go negative (cos below zero),
-  // and a "negative alignment" must never leak into the score.
-  return Math.max(0, Math.round(Math.cos((offset / SPAN) * Math.PI) * 1000) / 1000)
+  // and a "negative alignment" must never leak into the score. The square
+  // doubles the penalty at every point — same transform as the ADR 0005
+  // caffeine amendment — so the 9h zero floor and the curve shape are kept.
+  const cos = Math.max(0, Math.cos((offset / SPAN) * Math.PI))
+  return Math.round(cos * cos * 1000) / 1000
 }
 
 // Sleep score: duration relative to the goal, damped by how far past the ideal
-// onset the bedtime falls. Duration alone was the old score; timing is the
-// "quality" axis — 8h from 11 PM is 100, the same 8h from 1 AM ≈ 87.
+// onset the bedtime falls. Both axes carry a doubled penalty (see the comments
+// on sleepAlignment): each is the square of its raw ratio, so the shortfall
+// from a perfect night costs twice as much as before — 7h of an 8h goal is 77,
+// not 88, and 8h from 1 AM (2h late) is 88, not 97. A night at the goal on time
+// still scores exactly 100, so the ceiling never shifts.
 // Bedtime is optional: legacy logs without it keep the pure duration score.
 export function sleepScore(hours, goal = 8, bedtime, idealBedtime = '23:00') {
   if (typeof hours !== 'number' || hours <= 0) return 0
   if (typeof goal !== 'number' || goal <= 0) return 0
-  const duration = Math.min(100, (hours / goal) * 100)
+  const duration = Math.pow(Math.min(1, hours / goal), 2) * 100
   const alignment = sleepAlignment(bedtime, idealBedtime)
   return Math.min(100, Math.round(duration * alignment))
 }
@@ -65,12 +72,14 @@ export function sleepScoreForLog(log, goal = 8, idealBedtime = '23:00', caffeine
 }
 
 // The components behind a night's score, each on a 0–100 scale:
-// score ≈ duration × timing × caffeine / 10 000. UI shows all three so a
+// score ≈ duration × timing × caffeine / 10 000. Each component already carries
+// its own doubled penalty (the square of its raw ratio — see sleepScore and
+// sleepAlignment), so the product identity holds. UI shows all three so a
 // dropped score explains itself (e.g. "Duration 100 · Timing 100 · Caffeine 84").
 export function scoreBreakdown(log, goal = 8, idealBedtime = '23:00', caffeineLogs = []) {
   const duration =
     typeof log?.hours === 'number' && log.hours > 0 && typeof goal === 'number' && goal > 0
-      ? Math.min(100, (log.hours / goal) * 100)
+      ? Math.pow(Math.min(1, log.hours / goal), 2) * 100
       : 0
   return {
     duration: Math.round(duration),

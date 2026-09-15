@@ -1,9 +1,10 @@
 // What's new notes: the structured, visual summary behind the What's new
-// screen (see ADR 0009). One news item per user-visible change — an icon, a
-// headline, a short blurb, and optionally the id of the tutorial step that
-// spotlights it. Authored per change, in the same commit as the changelog
-// bullet, with `since: UNRELEASED` until the release cut stamps the version
-// (scripts/release.js rewrites the markers, exactly like tutorial steps).
+// screen (see ADR 0009 and its amendment). One news item per NEW FEATURE —
+// an icon, a headline, a short blurb, and optionally the id of the tutorial
+// step that spotlights it. Authored per feature, in the same commit as the
+// changelog bullet, with `since: UNRELEASED` until the release cut stamps the
+// version (scripts/release.js rewrites the markers, exactly like tutorial
+// steps).
 //
 // The notes are bundled into the build and are the ONLY trigger for the
 // popup and the "New" pill — never fetched live, so a long-open web tab on an
@@ -11,8 +12,10 @@
 // of truth for what shipped; the drift check keeps the two in line (every
 // release has items or an INTERNAL_ONLY mark).
 //
-// Standing rule: a user-facing change adds an item here too. Internal changes
-// never become items.
+// Standing rule: only new features become items. Bugfixes, tunings and other
+// refinements get a changelog bullet only — they never pop, and are found
+// under the popup's "Past releases" changelog. Internal changes never get an
+// item or a bullet.
 import { UNRELEASED, compareVersions } from './changelog.js'
 
 export { UNRELEASED }
@@ -23,27 +26,9 @@ export const WHATS_NEW_ITEMS = [
   // ── staged for the next cut ─────────────────────────────────────────────
   {
     since: UNRELEASED,
-    icon: '🪶',
-    title: 'Tab switches, no more jump',
-    body: 'For a split second while a screen slid in, a stray scrollbar could nudge the tab bar — that hop is gone.',
-  },
-  {
-    since: UNRELEASED,
-    icon: '🟣',
-    title: 'Lawrencium leads the pack',
-    body: 'New installs open in the Lawrencium gradient — a deep violet that pairs with the default accent. Your own theme pick stays exactly as you left it.',
-  },
-  {
-    since: UNRELEASED,
     icon: '🌫️',
     title: 'Twenty new gradients',
     body: 'Appearance now ships dark, muted gradients for every accent — Moss, Lawrencium and friends, no eye-searing neons.',
-  },
-  {
-    since: UNRELEASED,
-    icon: '👤',
-    title: 'Profiles, at a glance',
-    body: 'Tap a name on any leaderboard and the profile opens right away, at full size.',
   },
   {
     since: UNRELEASED,
