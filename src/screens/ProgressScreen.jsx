@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, CalendarCheck, Check, Dumbbell, Lock, Repeat, Search, ShieldCheck, Trophy, X } from 'lucide-react'
-import { exerciseOptions, firstOfMonth, leaderboardFor } from '../lib/data'
+import { exerciseOptions, firstOfMonth, keyToDate, leaderboardFor } from '../lib/data'
 import { useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
@@ -239,7 +239,7 @@ export default function ProgressScreen() {
     const month = calCursor.getMonth()
     let n = 0
     for (const k of doneDates) {
-      const t = new Date(`${k}T00:00:00`)
+      const t = keyToDate(k)
       if (t.getFullYear() === year && t.getMonth() === month) n += 1
     }
     return n

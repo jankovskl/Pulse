@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { Screen, useNav } from '../components/ui'
-import { dateKey, firstOfMonth } from '../lib/data'
+import { dateKey, firstOfMonth, keyToDate } from '../lib/data'
 import { WorkoutCalendar, PlanDayPicker } from '../components/Calendar'
 
 export default function CalendarScreen() {
@@ -22,7 +22,7 @@ export default function CalendarScreen() {
     const month = cursor.getMonth()
     let n = 0
     for (const k of doneDates) {
-      const t = new Date(`${k}T00:00:00`)
+      const t = keyToDate(k)
       if (t.getFullYear() === year && t.getMonth() === month) n += 1
     }
     return n

@@ -142,7 +142,6 @@ export function StoreProvider({ children }) {
   const stateRef = useRef(state)
   const lastSynced = useRef(0)
 
-
   function recordLift(exercise, weight) {
     const userId = getUserId()
     if (!supabase || !userId || !weight) return
@@ -273,7 +272,7 @@ export function StoreProvider({ children }) {
       lastActiveExercise: state.lastActiveExercise,
       totals: state.totals,
       sleep: state.sleep,
-    caffeine: state.caffeine,
+      caffeine: state.caffeine,
 
       addDay(name, weekday) {
         const colors = ['#0485F7', '#17C964', '#F5A524', '#7C3AED', '#F2606E']
@@ -339,9 +338,7 @@ export function StoreProvider({ children }) {
         setState((s) => ({
           ...s,
           days: s.days.map((d) =>
-            d.id === dayId
-              ? { ...d, exercises: d.exercises.filter((e) => e.id !== exId) }
-              : d,
+            d.id === dayId ? { ...d, exercises: d.exercises.filter((e) => e.id !== exId) } : d,
           ),
         }))
       },
@@ -448,8 +445,8 @@ export function StoreProvider({ children }) {
             }
             sessions = sessions
               .filter((x) => !(x.exercise === ex.name && x.full === full))
-              .slice(0, 59)
-            sessions = [newSession, ...sessions].slice(0, 60)
+              .slice(0, 359)
+            sessions = [newSession, ...sessions].slice(0, 360)
           }
 
           return { ...s, days, sessions, totals }
@@ -476,10 +473,10 @@ export function StoreProvider({ children }) {
           const newSession = { date: dateStr, full, exercise: exerciseName, sets, reps, weight, pr }
           const sessions = s.sessions
             .filter((x) => !(x.exercise === exerciseName && x.full === full))
-            .slice(0, 59)
+            .slice(0, 359)
           return {
             ...s,
-            sessions: [newSession, ...sessions].slice(0, 60),
+            sessions: [newSession, ...sessions].slice(0, 360),
           }
         })
         recordLift(exerciseName, weight)
@@ -650,12 +647,10 @@ export function StoreProvider({ children }) {
   )
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>
-
-
 }
 
 export function useStore() {
-// Export control over ongoing session full key
-// Ongoing session full key helpers are exported at top level
+  // Export control over ongoing session full key
+  // Ongoing session full key helpers are exported at top level
   return useContext(StoreCtx)
 }
